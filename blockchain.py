@@ -69,6 +69,9 @@ class Account(object):
     def balance(self):
         pass
 
+    def sign(self, data):
+        return hexlify(self.privkey.ecdsa_sign(bytes(bytearray.fromhex(data)), raw=True)).decode('ascii')
+
     @staticmethod
     def find_unspent_tx_outs(address, unspent_tx_outs):
         return [tx_out for tx_out in unspent_tx_outs if tx_out.address == address]
@@ -155,10 +158,8 @@ class Transaction(object):
         self.id = self._gene_transaction_id()
 
     def sign_tx_ins(self, account):
-        for index, tx_in in enumerate(self.tx_ins):
-            pass
-
-
+        for tx_in in self.tx_ins:
+            tx_in.signature = account.sign(self.id)
 
 
 class Block(object):
