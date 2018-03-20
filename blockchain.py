@@ -72,11 +72,21 @@ class Account(object):
     def find_unspent_tx_outs(address, unspent_tx_outs):
         return [tx_out for tx_out in unspent_tx_outs if tx_out.address == address]
 
-    def create_tx_outs():
+    @staticmethod
+    def create_tx_outs(receiver_address, from_address, amount, fee=0.01, left_amount=0.00):
         # https://blockchain.info/tx/b657e22827039461a9493ede7bdf55b01579254c1630b0bfc9185ec564fc05ab?format=json
+        tx_out = TxOut(receiver_address, amount)
+        if left_amount == 0.00:
+            return [tx_out]
+        else:
+            left_tx = TxOut(from_address, left_amount)
+            return [tx_out left_tx]
 
-
-
+    # https://webbtc.com/tx/a4bfa8ab6435ae5f25dae9d89e4eb67dfa94283ca751f393c1ddc5a837bbc31b
+    @staticmethod
+    def create_transaction(privkey, receiver_address, amount,
+                           unspentTxOuts: UnspentTxOut[], transaction_pool):
+        pass
 
 class Block(object):
     def __init__(self, index, hash, prev_hash, difficulty, transactions, timestamp):
