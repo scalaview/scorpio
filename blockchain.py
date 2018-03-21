@@ -142,6 +142,14 @@ class TxOut(object):
         self.amount = amount
 
 
+class UnspentTxOut(object):
+    def __init__(self, tx_out_id, tx_out_index, address, amount):
+        self.tx_out_id = tx_out_id
+        self.tx_out_index = tx_out_index
+        self.address = address
+        self.amount = amount
+
+
 class Transaction(object):
     def __init__(self, arg):
         self.id = None
@@ -160,6 +168,12 @@ class Transaction(object):
     def sign_tx_ins(self, account):
         for tx_in in self.tx_ins:
             tx_in.signature = account.sign(self.id)
+
+    def validate_transaction(self, unspent_tx_outs):
+        # check
+        if self.gene_transaction_id() != self.id:
+            return False
+
 
 
 class Block(object):
