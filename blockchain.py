@@ -1,6 +1,6 @@
 import hashlib
 import json
-
+import logging
 from secp256k1 import PrivateKey, PublicKey
 from binascii import hexlify, unhexlify
 from functools import reduce
@@ -14,6 +14,7 @@ DIFFICULTY_ADJUSTMENT_INTERVAL = 10
 # uncompressed = hexlify(privkey.pubkey.serialize(compressed=False)).decode('ascii')
 # print(compressed)
 # print(uncompressed)
+
 
 class Scorpio(object):
 
@@ -136,6 +137,16 @@ class TxIn(object):
         self.tx_out_index = None
         self.signature = None
 
+    def validate(self, transaction, unspent_tx_outs):
+        utx_out = unspent_tx_out for unspent_tx_out in unspent_tx_outs if unspent_tx_out.tx_out_id == self.tx_out_id and unspent_tx_out.tx_out_index == self.tx_out_index
+        if utx_out is None:
+            return False
+        pubkey = PublicKey(utx_out.address, raw=True)
+        if not pubkey.ecdsa_verify(bytes(bytearray.fromhex(transaction.id)), sig):
+            return False
+        return True
+
+
 class TxOut(object):
     def __init__(self, address, amount):
         self.address = address
@@ -156,27 +167,63 @@ class Transaction(object):
         self.tx_ins = []
         self.tx_outs = []
 
-    def _gene_transaction_id(self):
-        tx_in_str = reduce((lambda x, y: x+y), list(map( (lambda tx_in: tx_in.tx_out_id + str(tx_in.tx_out_index)), self.tx_ins)))
-        tx_out_str = reduce((lambda x, y: x+y), list(map( (lambda tx_in: ( "%s{%0.6f}" % (tx_in.address, tx_in.amount) )), self.tx_outs)))
+    @staticmethod
+    def _gene_transaction_id(transaction):
+        tx_in_str = reduce((lambda x, y: x+y), list(map( (lambda tx_in: tx_in.tx_out_id + str(tx_in.tx_out_index)), transaction.tx_ins)))
+        tx_out_str = reduce((lambda x, y: x+y), list(map( (lambda tx_in: ( "%s{%0.6f}" % (tx_in.address, tx_in.amount) )), transaction.tx_outs)))
 
         return hashlib.sha256(tx_in_str+tx_out_str).hexdigest()
 
     def gene_transaction_id(self):
-        self.id = self._gene_transaction_id()
+        self.id = Transaction._gene_transaction_id(self)
 
     def sign_tx_ins(self, account):
         for tx_in in self.tx_ins:
             tx_in.signature = account.sign(self.id)
 
-    def validate_transaction(self, unspent_tx_outs):
+    def validate(self, unspent_tx_outs):
         # check
         if self.gene_transaction_id() != self.id:
             return False
+        for tx_in in self.tx_ins:
+            if not tx_in.validate(self, unspent_tx_outs):
+                return False
+        total_tx_in_amount = 0.0
+        for tx_in in self.tx_ins:
+            result = Account.find_unspent_tx_outs(tx_in, unspent_tx_outs)
+            if result is not None:
+                total_tx_in_amount += result.amount
+        total_tx_out_amount = 0.0
+        for tx_out in self.tx_outs:
+            total_tx_out_amount += tx_out.amount
+        if total_tx_in_amount != total_tx_out_amount:
+            return False
 
+        return True
+
+    def validate_transaction_id(self):
+        self.id == Transaction._gene_transaction_id(self)
+
+    def is_reward(self, block_index):
+        if not self.validate_transaction_id():
+            return False
+        if len(self.tx_ins) != 1:
+            return False
+        if len(self.tx_outs) != 1:
+            return False
+        if self.tx_ins[0] and self.tx_ins[0].tx_out_index != block_index:
+            return False
+        if self.tx_outs[0] and self.tx_outs[0].amount !== Block.reward():
+            return False
+        return True
 
 
 class Block(object):
+
+    @staticmethod
+    def reward():
+        return 20
+
     def __init__(self, index, hash, prev_hash, difficulty, transactions, timestamp):
 
         self.index = index
@@ -185,5 +232,25 @@ class Block(object):
         self.difficulty = difficulty
         self.transactions = transactions
         self.timestamp = timestamp
+
+    @staticmethod
+    def validate(transactions, unspent_tx_outs, block_index):
+        if not Block.validate_reward_transaction(transactions[0], block_index):
+            logging.error("invalid reward transaction: %s" % json.dumps(transactions[0]))
+
+        # check uniq tx in
+
+
+    @staticmethod
+    def validate_reward_transaction(transaction, index):
+        if transaction is None:
+            logging.error("the first transaction must be the reward transaction")
+            return False
+
+        if not transaction.is_reward(index):
+            return False
+
+        return True
+
 
 
