@@ -137,7 +137,21 @@ class TxIn(object):
         self.tx_out_index = None
         self.signature = None
 
+    def validate_struct(self):
+        if not isinstance(self.signature, str):
+            logging.error("invalid TxIn signature type")
+            return False
+        elif not isinstance(self.tx_out_id, str):
+            logging.error("invalid TxIn tx_out_id type")
+            return False
+        elif not isinstance(self.tx_out_index, int):
+            logging.error("invalid TxIn tx_out_index type")
+            return False
+        return True
+
     def validate(self, transaction, unspent_tx_outs):
+        if not self.validate_struct():
+            return False
         utx_out = unspent_tx_out for unspent_tx_out in unspent_tx_outs if unspent_tx_out.tx_out_id == self.tx_out_id and unspent_tx_out.tx_out_index == self.tx_out_index
         if utx_out is None:
             return False
@@ -152,6 +166,23 @@ class TxOut(object):
         self.address = address
         self.amount = amount
 
+    @staticmethod
+    def validate(address):
+        True
+
+    def validate_struct(self):
+        if not isinstance(self.address, str):
+            logging.error("invalid TxOut address type")
+            return False
+        elif not (isinstance(self.amount, int) or isinstance(self.amount, float)) :
+            logging.error("invalid TxOut amount type")
+            return False
+        return True
+
+    def validate(self):
+        if not self.validate_struct():
+            return False
+        TxOut.validate(self.address)
 
 class UnspentTxOut(object):
     def __init__(self, tx_out_id, tx_out_index, address, amount):
@@ -181,8 +212,22 @@ class Transaction(object):
         for tx_in in self.tx_ins:
             tx_in.signature = account.sign(self.id)
 
+    def validate_struct(self):
+        if not isinstance(self.id, str):
+            logging.error("invalid Transaction id type")
+            return False
+        elif not isinstance(self.tx_ins, list):
+            logging.error("invalid Transaction tx_ins type")
+            return False
+        elif not isinstance(self.tx_outs, list):
+            logging.error("invalid Transaction tx_outs type")
+            return False
+        return True
+
     def validate(self, unspent_tx_outs):
         # check
+        if not self.validate_struct():
+            return False
         if self.gene_transaction_id() != self.id:
             return False
         for tx_in in self.tx_ins:
@@ -237,8 +282,12 @@ class Block(object):
     def validate(transactions, unspent_tx_outs, block_index):
         if not Block.validate_reward_transaction(transactions[0], block_index):
             logging.error("invalid reward transaction: %s" % json.dumps(transactions[0]))
-
-        # check uniq tx in
+            return False
+        # tx_ins = [tx_in for tx_ins in for transaction in transactions]
+        for transaction in transactions:
+            if not transaction.validate():
+                return False
+        return True
 
 
     @staticmethod
@@ -249,8 +298,8 @@ class Block(object):
 
         if not transaction.is_reward(index):
             return False
-
         return True
+
 
 
 
