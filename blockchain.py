@@ -74,9 +74,15 @@ class Account(object):
         return hexlify(self.privkey.ecdsa_sign(bytes(bytearray.fromhex(data)), raw=True)).decode('ascii')
 
     @staticmethod
+    def find_unspent_tx_out(transaction_id, index, unspent_tx_outs):
+        for unspent_tx_out in unspent_tx_outs:
+            if unspent_tx_out.tx_out_id == transaction_id and unspent_tx_out.tx_out_index == index
+                return unspent_tx_out
+        return None
+
+    @staticmethod
     def find_unspent_tx_outs(address, unspent_tx_outs):
         return [tx_out for tx_out in unspent_tx_outs if tx_out.address == address]
-
 
     @staticmethod
     def create_transation_tx_outs(receiver_address, amount, from_address, left_amount):
@@ -270,7 +276,6 @@ class Block(object):
         return 20
 
     def __init__(self, index, hash, prev_hash, difficulty, transactions, timestamp):
-
         self.index = index
         self.hash = hash
         self.prev_hash = prev_hash
@@ -299,6 +304,26 @@ class Block(object):
         if not transaction.is_reward(index):
             return False
         return True
+
+    @staticmethod
+    def update_unspent_tx_outs(transactions, unspent_tx_outs):
+        tmp_unspent_tx_outs = []
+        prepare_tx_outs = []
+        for transaction in transactions:
+            for index, tx_out in enumerate(transction.tx_outs):
+                tmp_unspent_tx_outs.append(UnspentTxOut(transaction.id, index, tx_out.address, tx_out.amount))
+            for tx_in in transction.tx_ins:
+                prepare_tx_outs.append(UnspentTxOut(transaction.id, tx_in.tx_out_index, "", 0))
+
+        result = [unspent_tx_out for unspent_tx_out in unspent_tx_outs if not Account.find_unspent_tx_out(unspent_tx_out.tx_out_id, unspent_tx_out.tx_out_index, prepare_tx_outs) ]
+        return result + tmp_unspent_tx_outs
+
+    @staticmethod
+    def process_transactions(transactions, unspent_tx_outs, block_index):
+        if not Block.validate(transactions, unspent_tx_outs, block_index):
+            return None
+        return Block.update_unspent_tx_outs(transactions, unspent_tx_outs)
+
 
 
 
