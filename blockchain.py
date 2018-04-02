@@ -12,11 +12,6 @@ BLOCK_GENERATION_INTERVAL = 10
 
 DIFFICULTY_ADJUSTMENT_INTERVAL = 10
 
-# privkey = PrivateKey(unhexlify('a591a6d40bf420404a011733cfb7b190d62c65bf0bcda32b57b277d9ad9f146e'))
-# compressed = hexlify(privkey.pubkey.serialize()).decode('ascii')
-# uncompressed = hexlify(privkey.pubkey.serialize(compressed=False)).decode('ascii')
-# print(compressed)
-# print(uncompressed)
 
 def get_current_timestamp():
     return int(time.time())
@@ -29,6 +24,13 @@ def broadcast_latest():
 
 def broad_cast_transaction_pool():
     pass
+
+
+class DymEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, TxIn) or isinstance(obj, TxOut) or isinstance(obj, Transaction) or isinstance(obj, Account):
+            return obj.__dict__
+        return json.JSONEncoder.default(self, obj)
 
 class Scorpio(object):
 
@@ -125,7 +127,7 @@ class Scorpio(object):
 
     @staticmethod
     def is_valid_chain(blockchain_to_validate):
-        if json.dumps(blockchain_to_validate[0]) != json.dumps(Block.genesis_block):
+        if json.dumps(blockchain_to_validate[0], cls=DymEncoder) != json.dumps(Block.genesis_block, cls=DymEncoder):
             return None
 
         unspent_tx_outs = [];
@@ -148,7 +150,7 @@ class Scorpio(object):
     def __init__(self):
         self.transaction_pool = []
         self.blockchain = [Block.genesis_block()]
-        self.unspent_tx_outs = Block.process_transactions(blockchain[0].transactions, [], 0)
+        self.unspent_tx_outs = Block.process_transactions(self.blockchain[0].transactions, [], 0)
         self.my_account = Account()
 
     def get_transaction_pool(self):
@@ -167,7 +169,7 @@ class Scorpio(object):
         if not is_valid_tx_for_pool(tx, transaction_pool):
             raise ValueError('Trying to add invalid tx to pool')
 
-        logging.info('adding to txPool: %s', json.dumps(tx))
+        logging.info('adding to tx_pool: %s', json.dumps(tx, cls=DymEncoder))
         self.transaction_pool.append(tx)
 
     def update_transaction_pool(self, unspent_tx_outs):
@@ -179,7 +181,7 @@ class Scorpio(object):
                     self.transaction_pool.remove(tx)
                     break
         if len(invalid_txs) > 0:
-            logging.error('removing the following transactions from txPool: %s', json.dumps(invalid_txs))
+            logging.error('removing the following transactions from txPool: %s', json.dumps(invalid_txs, cls=DymEncoder))
 
     def get_blockchain(self):
         return self.blockchain
@@ -211,7 +213,7 @@ class Scorpio(object):
             self.set_unspent_tx_outs(unspent_tx_outs)
             self.update_transaction_pool(self.get_unspent_tx_outs())
             broadcastLatest()
-        else
+        else:
             logging.error("Received blockchain invalid")
 
 class Account(object):
@@ -253,7 +255,7 @@ class Account(object):
     @staticmethod
     def find_unspent_tx_out(transaction_id, index, unspent_tx_outs):
         for unspent_tx_out in unspent_tx_outs:
-            if unspent_tx_out.tx_out_id == transaction_id and unspent_tx_out.tx_out_index == index
+            if unspent_tx_out.tx_out_id == transaction_id and unspent_tx_out.tx_out_index == index:
                 return unspent_tx_out
         return None
 
@@ -289,10 +291,10 @@ class Account(object):
         return True
 
 class TxIn(object):
-    def __init__(self):
-        self.tx_out_id = None
-        self.tx_out_index = None
-        self.signature = None
+    def __init__(self, tx_out_id=None, tx_out_index=None, signature=None):
+        self.tx_out_id = tx_out_id
+        self.tx_out_index = tx_out_index
+        self.signature = signature
 
     def validate_struct(self):
         if not isinstance(self.signature, str):
@@ -309,7 +311,10 @@ class TxIn(object):
     def validate(self, transaction, unspent_tx_outs):
         if not self.validate_struct():
             return False
-        utx_out = unspent_tx_out for unspent_tx_out in unspent_tx_outs if unspent_tx_out.tx_out_id == self.tx_out_id and unspent_tx_out.tx_out_index == self.tx_out_index
+        utx_out = None
+        for unspent_tx_out in unspent_tx_outs:
+            if unspent_tx_out.tx_out_id == self.tx_out_id and unspent_tx_out.tx_out_index == self.tx_out_index:
+                utx_out = unspent_tx_out
         if utx_out is None:
             return False
         pubkey = PublicKey(utx_out.address, raw=True)
@@ -351,22 +356,22 @@ class UnspentTxOut(object):
     @staticmethod
     def has_tx_in(tx_in, unspent_tx_outs):
         for u_tx_out in unspent_tx_outs:
-            if u_tx_out.tx_out_id == tx_in.tx_out_id && u_tx_out.tx_out_index == tx_in.tx_out_index:
+            if u_tx_out.tx_out_id == tx_in.tx_out_id and u_tx_out.tx_out_index == tx_in.tx_out_index:
                 return True
         return False
 
 class Transaction(object):
-    def __init__(self, arg):
-        self.id = None
-        self.tx_ins = []
-        self.tx_outs = []
+    def __init__(self, id=None, tx_ins=[], tx_outs=[]):
+        self.id = id
+        self.tx_ins = tx_ins
+        self.tx_outs = tx_outs
 
     @staticmethod
     def _gene_transaction_id(transaction):
         tx_in_str = reduce((lambda x, y: x+y), list(map( (lambda tx_in: tx_in.tx_out_id + str(tx_in.tx_out_index)), transaction.tx_ins)))
         tx_out_str = reduce((lambda x, y: x+y), list(map( (lambda tx_in: ( "%s{%0.6f}" % (tx_in.address, tx_in.amount) )), transaction.tx_outs)))
 
-        return hashlib.sha256(tx_in_str+tx_out_str).hexdigest()
+        return hashlib.sha256((tx_in_str+tx_out_str).encode()).hexdigest()
 
     @staticmethod
     def generate_reward_transaction(address, index):
@@ -408,7 +413,7 @@ class Transaction(object):
             tx.sign_tx_ins(account)
             return tx
         else:
-            raise ValueError( "amount: {%0.6f} not enough from unspent_tx_outs: %s " % amount, json.dumps(available_tx_outs))
+            raise ValueError( "amount: {%0.6f} not enough from unspent_tx_outs: %s " % amount, json.dumps(available_tx_outs, cls=DymEncoder))
 
     @staticmethod
     def send_transaction(address, amount):
@@ -459,18 +464,23 @@ class Transaction(object):
         return True
 
     def validate_transaction_id(self):
-        self.id == Transaction._gene_transaction_id(self)
+        return self.id == Transaction._gene_transaction_id(self)
 
     def is_reward(self, block_index):
         if not self.validate_transaction_id():
+            logging.error("invalid transaction id")
             return False
         if len(self.tx_ins) != 1:
+            logging.error("invalid tx_ins")
             return False
         if len(self.tx_outs) != 1:
+            logging.error("invalid tx_outs")
             return False
         if self.tx_ins[0] and self.tx_ins[0].tx_out_index != block_index:
+            logging.error("invalid tx_ins index")
             return False
-        if self.tx_outs[0] and self.tx_outs[0].amount !== Block.reward():
+        if self.tx_outs[0] and self.tx_outs[0].amount != Block.reward():
+            logging.error("invalid tx_outs amount")
             return False
         return True
 
@@ -479,22 +489,15 @@ class Block(object):
 
     @staticmethod
     def reward():
-        return 20
+        return 50
 
     @staticmethod
     def genesis_transaction():
-        return {
-            'tx_ins': [{'signature': '', 'txOutId': '', 'txOutIndex': 0}],
-            'txOuts': [{
-                'address': '04bfcab8722991ae774db48f934ca79cfb7dd991229153b9f732ba5334aafcd8e7266e47076996b55a14bf9913ee3145ce0cfc1372ada8ada74bd287450313534a',
-                'amount': 50
-            }],
-            'id': 'e655f6a5f26dc9b4cac6e46f52336428287759cf81ef5ff10854f69d68f43fa3'
-        }
+        return Transaction(id="0c30a1a580e567d64295a6320aa13e018ff461b1ee530ea85287c48cc3f10258", tx_ins=[TxIn(tx_out_id="", tx_out_index=0, signature=None)], tx_outs=[TxOut(address="04bfcab8722991ae774db48f934ca79cfb7dd991229153b9f732ba5334aafcd8e7266e47076996b55a14bf9913ee3145ce0cfc1372ada8ada74bd287450313534a", amount=Block.reward())])
 
     @staticmethod
     def genesis_block():
-        Block(0, 'd7b59f69ece171eceaccd18a79b297f13e14575ea7c8305cd60ed6b855525944', '', 0, [Block.genesis_transaction()], 1682354356)
+        return Block(0, 'd7b59f69ece171eceaccd18a79b297f13e14575ea7c8305cd60ed6b855525944', '', 0, [Block.genesis_transaction()], 1682354356)
 
 
     def __init__(self, index, hash, prev_hash, difficulty, transactions, timestamp):
@@ -508,11 +511,11 @@ class Block(object):
     @staticmethod
     def validate(transactions, unspent_tx_outs, block_index):
         if not Block.validate_reward_transaction(transactions[0], block_index):
-            logging.error("invalid reward transaction: %s" % json.dumps(transactions[0]))
+            logging.error("invalid reward transaction: %s" % json.dumps(transactions[0], cls=DymEncoder))
             return False
         # tx_ins = [tx_in for tx_ins in for transaction in transactions]
-        for transaction in transactions:
-            if not transaction.validate():
+        for transaction in transactions[1:]:
+            if not transaction.validate(unspent_tx_outs):
                 return False
         return True
 
@@ -562,7 +565,7 @@ class Block(object):
 
     @staticmethod
     def calculate_hash(index, previous_hash, timestamp, transactions, difficulty):
-        return hashlib.sha256(str(index) + previous_hash + str(timestamp) + json.dumps(transactions) + str(difficulty)).hexdigest()
+        return hashlib.sha256(str(index) + previous_hash + str(timestamp) + json.dumps(transactions, cls=DymEncoder) + str(difficulty)).hexdigest()
 
     @staticmethod
     def hash_matches_difficulty(hash, difficulty):
@@ -576,7 +579,7 @@ class Block(object):
 
     @staticmethod
     def is_valid_timestamp(new_block, previous_block):
-    return ( previous_block.timestamp - 60 < new_block.timestamp ) and (new_block.timestamp - 60 < get_current_timestamp())
+        return ( previous_block.timestamp - 60 < new_block.timestamp ) and (new_block.timestamp - 60 < get_current_timestamp())
 
     @staticmethod
     def is_valid_hash(block):
@@ -597,7 +600,7 @@ class Block(object):
     @staticmethod
     def is_valid_new_block(new_block, previous_block):
         if not Block.is_valid_block_structure(new_block):
-            logging.error('invalid block structure: %s' % json.dumps(new_block))
+            logging.error('invalid block structure: %s' % json.dumps(new_block, cls=DymEncoder))
             return False
 
         if (previous_block.index + 1) != new_block.index:
@@ -624,7 +627,7 @@ class Block(object):
         if not Account.is_valid_address(receiver_address):
             raise ValueError('invalid address')
 
-        if type(amount) !== int or type(amount) != float:
+        if type(amount) != int or type(amount) != float:
             raise ValueError('invalid amount')
 
         reward_tx = Transaction.generate_reward_transaction(Scorpio.get_pubkey_der(), Scorpio.get_latest_block().index + 1)

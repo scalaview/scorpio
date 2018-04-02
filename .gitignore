@@ -107,3 +107,4 @@ ENV/
 bin/
 include/
 pip-selfcheck.json
+config.json
