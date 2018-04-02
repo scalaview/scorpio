@@ -374,7 +374,7 @@ class Transaction(object):
         return hashlib.sha256((tx_in_str+tx_out_str).encode()).hexdigest()
 
     @staticmethod
-    def generate_reward_transaction(address, index):
+    def generate_coinbase_transaction(address, index):
         transaction = Transaction()
 
         tx_in = TxIn()
@@ -466,7 +466,7 @@ class Transaction(object):
     def validate_transaction_id(self):
         return self.id == Transaction._gene_transaction_id(self)
 
-    def is_reward(self, block_index):
+    def is_coinbase(self, block_index):
         if not self.validate_transaction_id():
             logging.error("invalid transaction id")
             return False
@@ -510,8 +510,8 @@ class Block(object):
 
     @staticmethod
     def validate(transactions, unspent_tx_outs, block_index):
-        if not Block.validate_reward_transaction(transactions[0], block_index):
-            logging.error("invalid reward transaction: %s" % json.dumps(transactions[0], cls=DymEncoder))
+        if not Block.validate_coinbase_transaction(transactions[0], block_index):
+            logging.error("invalid coinbase transaction: %s" % json.dumps(transactions[0], cls=DymEncoder))
             return False
         # tx_ins = [tx_in for tx_ins in for transaction in transactions]
         for transaction in transactions[1:]:
@@ -521,12 +521,12 @@ class Block(object):
 
 
     @staticmethod
-    def validate_reward_transaction(transaction, index):
+    def validate_coinbase_transaction(transaction, index):
         if transaction is None:
-            logging.error("the first transaction must be the reward transaction")
+            logging.error("the first transaction must be the coinbase transaction")
             return False
 
-        if not transaction.is_reward(index):
+        if not transaction.is_coinbase(index):
             return False
         return True
 
@@ -618,8 +618,8 @@ class Block(object):
 
     @staticmethod
     def generate_next_block():
-        reward_tx = Transaction.generate_reward_transaction(Scorpio.get_pubkey_der(), Scorpio.get_latest_block().index + 1)
-        block_data = [reward_tx] + Scorpio.get_transaction_pool()
+        coinbase_tx = Transaction.generate_coinbase_transaction(Scorpio.get_pubkey_der(), Scorpio.get_latest_block().index + 1)
+        block_data = [coinbase_tx] + Scorpio.get_transaction_pool()
         return Block.generate_raw_next_block(block_data)
 
     @staticmethod
@@ -630,9 +630,9 @@ class Block(object):
         if type(amount) != int or type(amount) != float:
             raise ValueError('invalid amount')
 
-        reward_tx = Transaction.generate_reward_transaction(Scorpio.get_pubkey_der(), Scorpio.get_latest_block().index + 1)
+        coinbase_tx = Transaction.generate_coinbase_transaction(Scorpio.get_pubkey_der(), Scorpio.get_latest_block().index + 1)
         tx = Transaction.create_transaction(receiver_address, amount, Scorpio.privkey_der(), Scorpio.get_unspent_tx_outs(), Scorpio.get_transaction_pool())
-        block_data = [reward_tx, tx]
+        block_data = [coinbase_tx, tx]
         return Block.generate_raw_next_block(block_data)
 
     @staticmethod
