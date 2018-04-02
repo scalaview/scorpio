@@ -107,7 +107,7 @@ class Scorpio(object):
             prev_adjusted_block = blocks[-BLOCK_GENERATION_INTERVAL]
             expected_cost = BLOCK_GENERATION_INTERVAL * DIFFICULTY_ADJUSTMENT_INTERVAL
             spend_time = latest_block.timestamp - prev_adjusted_block.timestamp
-            if spend_time > expected_cost * 1.5 :
+            if spend_time > expected_cost * 2 :
                 return prev_adjusted_block.difficulty - 1
             elif spend_time < expected_cost / 2 :
                 return prev_adjusted_block.difficulty + 1
@@ -209,7 +209,7 @@ class Scorpio(object):
         unspent_tx_outs = Scorpio.is_valid_chain(new_blocks)
         if unspent_tx_outs is not None and Scorpio.get_accumulated_difficulty(new_blocks) > Scorpio.get_accumulated_difficulty(self.get_blockchain()):
             logging.info('Received blockchain is valid. Replacing current blockchain with received blockchain')
-            blockchain = new_blocks
+            self.blockchain = new_blocks
             self.set_unspent_tx_outs(unspent_tx_outs)
             self.update_transaction_pool(self.get_unspent_tx_outs())
             broadcastLatest()
@@ -500,13 +500,14 @@ class Block(object):
         return Block(0, 'd7b59f69ece171eceaccd18a79b297f13e14575ea7c8305cd60ed6b855525944', '', 0, [Block.genesis_transaction()], 1682354356)
 
 
-    def __init__(self, index, hash, prev_hash, difficulty, transactions, timestamp):
+    def __init__(self, index, hash, prev_hash, difficulty, transactions, timestamp, nonce):
         self.index = index
         self.hash = hash
         self.prev_hash = prev_hash
         self.difficulty = difficulty
         self.transactions = transactions
         self.timestamp = timestamp
+        self.nonce
 
     @staticmethod
     def validate(transactions, unspent_tx_outs, block_index):
@@ -561,11 +562,11 @@ class Block(object):
 
     @staticmethod
     def calculate_hash_for_block(block):
-        return calculate_hash(block.index, block.previous_hash, block.timestamp, block.transactions, block.difficulty)
+        return calculate_hash(block.index, block.previous_hash, block.timestamp, block.transactions, block.difficulty, block.nonce)
 
     @staticmethod
-    def calculate_hash(index, previous_hash, timestamp, transactions, difficulty):
-        return hashlib.sha256(str(index) + previous_hash + str(timestamp) + json.dumps(transactions, cls=DymEncoder) + str(difficulty)).hexdigest()
+    def calculate_hash(index, previous_hash, timestamp, transactions, difficulty, nonce):
+        return hashlib.sha256(str(index) + previous_hash + str(timestamp) + json.dumps(transactions, cls=DymEncoder) + str(difficulty) + str(nonce)).hexdigest()
 
     @staticmethod
     def hash_matches_difficulty(hash, difficulty):
@@ -637,8 +638,11 @@ class Block(object):
 
     @staticmethod
     def find_block(index, previous_hash, current_timestamp_func, transactions, difficulty):
+        nonce = 1
         while True:
-            _hash = Block.calculate_hash(index, previous_hash, current_timestamp_func(), transactions, difficulty)
+            current_timestamp = current_timestamp_func()
+            _hash = Block.calculate_hash(index, previous_hash, current_timestamp, transactions, difficulty, nonce)
             if Block.hash_matches_difficulty(_hash, difficulty):
-                return Block(index, _hash, previous_hash, difficulty, transactions, current_timestamp_func())
+                return Block(index, _hash, previous_hash, difficulty, transactions, current_timestamp, nonce)
+            nonce +=1
 
