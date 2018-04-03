@@ -10,3 +10,6 @@ def create_app(env):
     config[env].init_app(app)
     return app
 
+
+@app.route('/blocks', methods=['GET'])
+def blocks():
