@@ -73,4 +73,12 @@ def balance(address=Scorpio.get_pubkey_der()):
 
 @api.route('/send_transaction', methods=['POST'])
 def send_transaction():
-    pass
+    params = request.get_json(silent=True)
+    if params:
+        address = params.get('address')
+        amount = params.get('amount')
+        if not address or type(address) != str or not amount or (type(amount) != int or type(amount) != float):
+            return json_res(err=1015, message="invalid address or amount")
+        result = Scorpio.send_transaction(address, amount)
+        return json_res(result)
+    return json_res(err=1013, message="miss params")
