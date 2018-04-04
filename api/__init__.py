@@ -10,6 +10,12 @@ def json_res(data={}, err=0, message="success"):
         result['data'] = data
     return jsonify(result)
 
+@api.before_app_request
+def before_request():
+    if request.method in ['POST']:
+        if not request.is_json:
+            return json_res(err=1005, message="only accep application/json")
+
 @api.route('/blocks', methods=['GET'])
 def blocks():
     return json_res(Scorpio.get_blockchain()), 200
@@ -39,8 +45,6 @@ def address(address):
 
 @api.route('/address', methods=['POST'])
 def pub_address():
-    if not request.is_json:
-        return json_res(err=1005, message="only accep application/json")
     params = request.get_json(silent=True)
     if params:
         key = params.get('key')
@@ -67,3 +71,6 @@ def balance(address=Scorpio.get_pubkey_der()):
     balance = Account.get_blance(address, Scorpio.get_unspent_tx_outs())
     return json_res({'balance': balance}), 200
 
+@api.route('/send_transaction', methods=['POST'])
+def send_transaction():
+    pass
