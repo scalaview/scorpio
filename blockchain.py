@@ -28,7 +28,7 @@ def broad_cast_transaction_pool():
 
 class DymEncoder(json.JSONEncoder):
     def default(self, obj):
-        if isinstance(obj, TxIn) or isinstance(obj, TxOut) or isinstance(obj, Transaction) or isinstance(obj, Account):
+        if isinstance(obj, TxIn) or isinstance(obj, TxOut) or isinstance(obj, Transaction) or isinstance(obj, Account) or isinstance(obj, Block) or isinstance(obj, UnspentTxOut):
             return obj.__dict__
         return json.JSONEncoder.default(self, obj)
 
@@ -37,8 +37,8 @@ class Scorpio(object):
     instance = None
 
     @staticmethod
-    def build_instance():
-        Scorpio.instance = Scorpio()
+    def build_instance(privkey=None):
+        Scorpio.instance = Scorpio(Account(privkey))
 
     @staticmethod
     def get_latest_block():
@@ -60,7 +60,7 @@ class Scorpio(object):
 
     @staticmethod
     def get_transaction_pool():
-        return Scorpio.instance.get_transaction_pool()
+        return Scorpio.instance._get_transaction_pool()
 
     @staticmethod
     def add_block_to_chain(new_block):
@@ -82,6 +82,7 @@ class Scorpio(object):
 
     @staticmethod
     def get_my_unspent_transaction_outputs():
+        logging.error(Scorpio.get_pubkey_der())
         return Account.find_unspent_tx_outs(Scorpio.get_pubkey_der(), Scorpio.get_unspent_tx_outs())
 
     @staticmethod
@@ -123,7 +124,7 @@ class Scorpio(object):
 
     @staticmethod
     def add_to_transaction_pool(tx, unspent_tx_outs):
-        return Scorpio.instance.add_to_transaction_pool(tx, unspent_tx_outs)
+        return Scorpio.instance._add_to_transaction_pool(tx, unspent_tx_outs)
 
     @staticmethod
     def is_valid_chain(blockchain_to_validate):
@@ -147,13 +148,13 @@ class Scorpio(object):
     def handle_received_transaction(transaction):
         Scorpio.add_to_transaction_pool(transaction, Scorpio.get_unspent_tx_outs())
 
-    def __init__(self):
+    def __init__(self, account=None):
         self.transaction_pool = []
         self.blockchain = [Block.genesis_block()]
         self.unspent_tx_outs = Block.process_transactions(self.blockchain[0].transactions, [], 0)
-        self.my_account = Account()
+        self.my_account = account or Account()
 
-    def get_transaction_pool(self):
+    def _get_transaction_pool(self):
         return copy.deepcopy(self.transaction_pool)
 
     def set_transaction_pool(self, tx_pool):
@@ -162,8 +163,8 @@ class Scorpio(object):
     def get_latest_block(self):
         return self.blockchain[-1]
 
-    def add_to_transaction_pool(self, tx, unspent_tx_outs):
-        if not validate_transaction(tx, unspent_tx_outs):
+    def _add_to_transaction_pool(self, tx, unspent_tx_outs):
+        if not self.validate_transaction(tx, unspent_tx_outs):
             raise ValueError('Trying to add invalid tx to pool')
 
         if not is_valid_tx_for_pool(tx, transaction_pool):
@@ -171,6 +172,9 @@ class Scorpio(object):
 
         logging.info('adding to tx_pool: %s', json.dumps(tx, cls=DymEncoder))
         self.transaction_pool.append(tx)
+
+    def validate_transaction(self, transaction, unspent_tx_outs):
+        return transaction.validate(unspent_tx_outs)
 
     def update_transaction_pool(self, unspent_tx_outs):
         invalid_txs = []
@@ -183,10 +187,10 @@ class Scorpio(object):
         if len(invalid_txs) > 0:
             logging.error('removing the following transactions from txPool: %s', json.dumps(invalid_txs, cls=DymEncoder))
 
-    def get_blockchain(self):
+    def _get_blockchain(self):
         return self.blockchain
 
-    def get_unspent_tx_outs(self):
+    def _get_unspent_tx_outs(self):
         return self.unspent_tx_outs
 
     def set_unspent_tx_outs(self, un_tx_outs):
@@ -194,7 +198,7 @@ class Scorpio(object):
 
     def add_block_to_chain(self, new_block):
         if Block.is_valid_new_block(new_block, self.get_latest_block()):
-            ret_val = Block.process_transactions(new_block.transactions, self.get_unspent_tx_outs(), new_block.index)
+            ret_val = Block.process_transactions(new_block.transactions, self._get_unspent_tx_outs(), new_block.index)
             if ret_val is None or len(ret_val) == 0:
                 return False
             else:
@@ -207,11 +211,11 @@ class Scorpio(object):
 
     def replace_chain(self, new_blocks):
         unspent_tx_outs = Scorpio.is_valid_chain(new_blocks)
-        if unspent_tx_outs is not None and Scorpio.get_accumulated_difficulty(new_blocks) > Scorpio.get_accumulated_difficulty(self.get_blockchain()):
+        if unspent_tx_outs is not None and Scorpio.get_accumulated_difficulty(new_blocks) > Scorpio.get_accumulated_difficulty(self._get_blockchain()):
             logging.info('Received blockchain is valid. Replacing current blockchain with received blockchain')
             self.blockchain = new_blocks
             self.set_unspent_tx_outs(unspent_tx_outs)
-            self.update_transaction_pool(self.get_unspent_tx_outs())
+            self.update_transaction_pool(self._get_unspent_tx_outs())
             broadcastLatest()
         else:
             logging.error("Received blockchain invalid")
@@ -243,7 +247,7 @@ class Account(object):
         return Account.get_blance(self.pubkey_der, Scorpio.get_unspent_tx_outs())
 
     def sign(self, data):
-        return hexlify(self.privkey.ecdsa_sign(bytes(bytearray.fromhex(data)), raw=True)).decode('ascii')
+        return hexlify(self.privkey.ecdsa_serialize(self.privkey.ecdsa_sign(bytes(bytearray.fromhex(data)), raw=True))).decode('ascii')
 
     @staticmethod
     def get_blance(address, unspent_tx_outs):
@@ -317,8 +321,10 @@ class TxIn(object):
                 utx_out = unspent_tx_out
         if utx_out is None:
             return False
-        pubkey = PublicKey(utx_out.address, raw=True)
-        if not pubkey.ecdsa_verify(bytes(bytearray.fromhex(transaction.id)), sig):
+        pubkey = PublicKey(unhexlify(utx_out.address), raw=True)
+        logging.error(transaction.id)
+        if not pubkey.ecdsa_verify(bytes(bytearray.fromhex(transaction.id)), pubkey.ecdsa_deserialize(unhexlify(self.signature))):
+            logging.error("invalid tx_in signature")
             return False
         return True
 
@@ -391,7 +397,7 @@ class Transaction(object):
     @staticmethod
     def create_transaction(privkey, receiver_address, amount, unspent_tx_outs, transaction_pool):
         account = Account(privkey)
-        available_tx_outs = [ tx_out for tx_out in unspent_tx_outs if tx_out.address == account.pubkey_der ]
+        available_tx_outs = [ tx_out for tx_out in unspent_tx_outs if tx_out.address == account.pubkey_der() ]
         tx_ins = [ tx_in for transaction in transaction_pool for tx_in in transaction.tx_ins]
 
         # from itertools import filterfalse
@@ -413,12 +419,12 @@ class Transaction(object):
             tx.sign_tx_ins(account)
             return tx
         else:
-            raise ValueError( "amount: {%0.6f} not enough from unspent_tx_outs: %s " % amount, json.dumps(available_tx_outs, cls=DymEncoder))
+            raise ValueError( "amount: %0.6f not enough from unspent_tx_outs: %s " % (amount, json.dumps(available_tx_outs, cls=DymEncoder)))
 
     @staticmethod
     def send_transaction(address, amount):
-        tx = Transaction.create_transaction(address, amount, Scorpio.get_privkey_der(), Scorpio.get_unspent_tx_outs(), Scorpio.get_transaction_pool())
-        Scorpio.add_to_transaction_pool(tx, get_unspent_tx_outs())
+        tx = Transaction.create_transaction(Scorpio.get_privkey_der(), address, amount, Scorpio.get_unspent_tx_outs(), Scorpio.get_transaction_pool())
+        Scorpio.add_to_transaction_pool(tx, Scorpio.get_unspent_tx_outs())
         broad_cast_transaction_pool()
         return tx
 
@@ -444,11 +450,14 @@ class Transaction(object):
     def validate(self, unspent_tx_outs):
         # check
         if not self.validate_struct():
+            logging.error("invalid transaction struct")
             return False
-        if self.gene_transaction_id() != self.id:
+        if Transaction._gene_transaction_id(self) != self.id:
+            logging.error("invalid transaction id")
             return False
         for tx_in in self.tx_ins:
             if not tx_in.validate(self, unspent_tx_outs):
+                logging.error("invalid tx_in, signature: %s" % tx_in.signature)
                 return False
         total_tx_in_amount = 0.0
         for tx_in in self.tx_ins:
@@ -459,6 +468,7 @@ class Transaction(object):
         for tx_out in self.tx_outs:
             total_tx_out_amount += tx_out.amount
         if total_tx_in_amount != total_tx_out_amount:
+            logging.error("invalid amount, total_tx_in_amount: %0.6f, total_tx_out_amount: %0.6f" % (total_tx_in_amount, total_tx_out_amount))
             return False
 
         return True
@@ -493,7 +503,8 @@ class Block(object):
 
     @staticmethod
     def genesis_transaction():
-        return Transaction(id="0c30a1a580e567d64295a6320aa13e018ff461b1ee530ea85287c48cc3f10258", tx_ins=[TxIn(tx_out_id="", tx_out_index=0, signature=None)], tx_outs=[TxOut(address="04bfcab8722991ae774db48f934ca79cfb7dd991229153b9f732ba5334aafcd8e7266e47076996b55a14bf9913ee3145ce0cfc1372ada8ada74bd287450313534a", amount=Block.reward())])
+
+        return Transaction(id="c39320b3287d3d1889f0b4b7eb8ab7b5b07e274d331aacf9059f433fca60ef53", tx_ins=[TxIn(tx_out_id="", tx_out_index=0, signature='')], tx_outs=[TxOut(address="02e525a9b78192e0a589a0ef74fc053ec97f5aabffe74263f968a57d08424a1e06", amount=Block.reward())])
 
     @staticmethod
     def genesis_block():

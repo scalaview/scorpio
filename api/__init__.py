@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
-from blockchain import Scorpio, Account
+from blockchain import Scorpio, Account, Transaction, DymEncoder
 import logging
+import json
 
 api = Blueprint('api', __name__)
 
@@ -8,6 +9,7 @@ def json_res(data={}, err=0, message="success"):
     result = {'err': err, 'message': message }
     if data:
         result['data'] = data
+    logging.error(data)
     return jsonify(result)
 
 @api.before_app_request
@@ -25,7 +27,7 @@ def block(hash):
     target = {}
     for block in Scorpio.get_blockchain():
         if block.hash == hash:
-            target = jsonify(block)
+            target = block
     return json_res(target), 200
 
 @api.route('/transaction/<id>', methods=['GET'])
@@ -34,13 +36,12 @@ def transaction(id):
     for block in Scorpio.get_blockchain():
         for tx in block.transactions:
             if tx.id == id:
-                transaction = jsonify(tx)
-
+                transaction = tx
     return json_res(transaction), 200
 
 @api.route('/address/<address>', methods=['GET'])
 def address(address):
-    unspent_outputs = [ jsonify(unspent_output) for unspent_output in Scorpio.get_unspent_tx_outs() if unspent_output.address == address ]
+    unspent_outputs = [ unspent_output for unspent_output in Scorpio.get_unspent_tx_outs() if unspent_output.address == address ]
     return json_res(unspent_outputs), 200
 
 @api.route('/address', methods=['POST'])
@@ -63,8 +64,7 @@ def unspent_transaction_outputs():
 
 @api.route('/my_unspent_transaction_outputs', methods=['GET'])
 def my_unspent_transaction_outputs():
-    return jsonify(Scorpio.my_unspent_transaction_outputs()), 200
-
+    return json_res(Scorpio.get_my_unspent_transaction_outputs()), 200
 
 @api.route('/balance/<address>', methods=['GET'])
 def balance(address=Scorpio.get_pubkey_der()):
@@ -77,8 +77,16 @@ def send_transaction():
     if params:
         address = params.get('address')
         amount = params.get('amount')
-        if not address or type(address) != str or not amount or (type(amount) != int or type(amount) != float):
+        if not address or type(address) != str or not amount or (type(amount) != int and type(amount) != float):
             return json_res(err=1015, message="invalid address or amount")
-        result = Scorpio.send_transaction(address, amount)
+        result = Transaction.send_transaction(address, amount)
         return json_res(result)
     return json_res(err=1013, message="miss params")
+
+@api.route('/transaction_pool', methods=['GET'])
+def transaction_pool():
+    return json_res(Scorpio.get_transaction_pool())
+
+
+
+

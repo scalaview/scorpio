@@ -1,6 +1,6 @@
 import os
 import json
-from blockchain import Scorpio
+from blockchain import Scorpio, DymEncoder
 basedir = os.path.abspath(os.path.dirname(__file__))
 config_path = basedir + "/config.json"
 config_json = json.loads(open(config_path).read())
@@ -14,7 +14,9 @@ class Config:
     @staticmethod
     def init_app(app):
         global myblockchain
-        myblockchain = Scorpio.build_instance()
+        myblockchain = Scorpio.build_instance(os.environ.get("PRIV_KEY"))
+        app.json_encoder = DymEncoder
+
 
 class DevelopmentConfig(Config):
     DEBUG = True
