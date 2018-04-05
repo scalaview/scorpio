@@ -8,8 +8,7 @@ def create_app(env):
     app = Flask(__name__)
     app.config.from_object(config[env])
     config[env].init_app(app)
+    from api import api as api_blueprint
+    app.register_blueprint(api_blueprint)
+
     return app
-
-
-@app.route('/blocks', methods=['GET'])
-def blocks():

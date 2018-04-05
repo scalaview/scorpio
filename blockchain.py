@@ -60,7 +60,7 @@ class Scorpio(object):
 
     @staticmethod
     def get_transaction_pool():
-        return instance.get_transaction_pool()
+        return Scorpio.instance.get_transaction_pool()
 
     @staticmethod
     def add_block_to_chain(new_block):
@@ -86,11 +86,11 @@ class Scorpio(object):
 
     @staticmethod
     def get_pubkey_der():
-        return instance.my_account.pubkey_der()
+        return Scorpio.instance.my_account.pubkey_der()
 
     @staticmethod
     def get_privkey_der():
-        return instance.my_account.privkey_der()
+        return Scorpio.instance.my_account.privkey_der()
 
     @staticmethod
     def get_difficulty(blocks):
@@ -123,7 +123,7 @@ class Scorpio(object):
 
     @staticmethod
     def add_to_transaction_pool(tx, unspent_tx_outs):
-        return instance.add_to_transaction_pool(tx, unspent_tx_outs)
+        return Scorpio.instance.add_to_transaction_pool(tx, unspent_tx_outs)
 
     @staticmethod
     def is_valid_chain(blockchain_to_validate):
@@ -141,7 +141,7 @@ class Scorpio(object):
 
     @staticmethod
     def replace_chain(new_blocks):
-        instance.replace_chain(new_blocks)
+        Scorpio.instance.replace_chain(new_blocks)
 
     @staticmethod
     def handle_received_transaction(transaction):
@@ -497,7 +497,7 @@ class Block(object):
 
     @staticmethod
     def genesis_block():
-        return Block(0, 'd7b59f69ece171eceaccd18a79b297f13e14575ea7c8305cd60ed6b855525944', '', 0, [Block.genesis_transaction()], 1682354356)
+        return Block(0, 'd7b59f69ece171eceaccd18a79b297f13e14575ea7c8305cd60ed6b855525944', '', 0, [Block.genesis_transaction()], 1682354356, 0)
 
 
     def __init__(self, index, hash, prev_hash, difficulty, transactions, timestamp, nonce):
@@ -507,7 +507,7 @@ class Block(object):
         self.difficulty = difficulty
         self.transactions = transactions
         self.timestamp = timestamp
-        self.nonce
+        self.nonce = nonce
 
     @staticmethod
     def validate(transactions, unspent_tx_outs, block_index):

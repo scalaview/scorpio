@@ -1,5 +1,5 @@
-from flask import Blueprint, jsonify
-from ..blockchain import Scorpio, Account
+from flask import Blueprint, jsonify, request
+from blockchain import Scorpio, Account
 import logging
 
 api = Blueprint('api', __name__)
