@@ -9,7 +9,6 @@ def json_res(data={}, err=0, message="success"):
     result = {'err': err, 'message': message }
     if data:
         result['data'] = data
-    logging.error(data)
     return jsonify(result)
 
 @api.before_app_request
@@ -86,7 +85,6 @@ def send_transaction():
 @api.route('/transaction_pool', methods=['GET'])
 def transaction_pool():
     return json_res(Scorpio.get_transaction_pool())
-
 
 
 

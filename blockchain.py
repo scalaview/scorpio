@@ -12,11 +12,13 @@ BLOCK_GENERATION_INTERVAL = 10
 
 DIFFICULTY_ADJUSTMENT_INTERVAL = 10
 
+DEFAULT_DIFFICULTY = 2
 
 def get_current_timestamp():
     return int(time.time())
 
 def repeat_to_length(string_to_expand, length):
+    logging.error("repeat_to_length", string_to_expand, length)
     return (string_to_expand * (int(length/len(string_to_expand))+1))[:length]
 
 def broadcast_latest():
@@ -25,6 +27,20 @@ def broadcast_latest():
 def broad_cast_transaction_pool():
     pass
 
+def hex_to_binary(string):
+    result = ''
+    store_dict = {
+        '0': '0000', '1': '0001', '2': '0010', '3': '0011', '4': '0100',
+        '5': '0101', '6': '0110', '7': '0111', '8': '1000', '9': '1001',
+        'a': '1010', 'b': '1011', 'c': '1100', 'd': '1101',
+        'e': '1110', 'f': '1111'
+    }
+    for s in string:
+        if store_dict.get(s):
+            result += store_dict.get(s)
+        else:
+            return None
+    return result
 
 class DymEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -43,7 +59,7 @@ class Scorpio(object):
     @staticmethod
     def get_latest_block():
         if Scorpio.instance:
-            return Scorpio.instance.blockchain[-1]
+            return Scorpio.instance._get_latest_block()
         else:
             return None
 
@@ -64,11 +80,11 @@ class Scorpio(object):
 
     @staticmethod
     def add_block_to_chain(new_block):
-        return Scorpio.instance.add_block_to_chain(new_block)
+        return Scorpio.instance._add_block_to_chain(new_block)
 
     @staticmethod
     def get_tx_pool_ins(_transaction_pool):
-        return [tx_in for tx_in in tx.tx_ins for tx in _transaction_pool]
+        return [tx_in for tx in _transaction_pool for tx_in in tx.tx_ins]
 
     @staticmethod
     def is_valid_tx_for_pool(tx, _transaction_pool):
@@ -82,7 +98,6 @@ class Scorpio(object):
 
     @staticmethod
     def get_my_unspent_transaction_outputs():
-        logging.error(Scorpio.get_pubkey_der())
         return Account.find_unspent_tx_outs(Scorpio.get_pubkey_der(), Scorpio.get_unspent_tx_outs())
 
     @staticmethod
@@ -99,7 +114,7 @@ class Scorpio(object):
         if latest_block.index % DIFFICULTY_ADJUSTMENT_INTERVAL == 0 and latest_block.index != 0:
             return Scorpio.adjust_difficulty(blocks)
         else:
-            return latest_block.difficulty
+            return latest_block.difficulty or DEFAULT_DIFFICULTY
 
     @staticmethod
     def adjust_difficulty(blocks):
@@ -160,14 +175,14 @@ class Scorpio(object):
     def set_transaction_pool(self, tx_pool):
         self.transaction_pool = tx_pool
 
-    def get_latest_block(self):
+    def _get_latest_block(self):
         return self.blockchain[-1]
 
     def _add_to_transaction_pool(self, tx, unspent_tx_outs):
         if not self.validate_transaction(tx, unspent_tx_outs):
             raise ValueError('Trying to add invalid tx to pool, error from transaction')
 
-        if not is_valid_tx_for_pool(tx, transaction_pool):
+        if not Scorpio.is_valid_tx_for_pool(tx, self.transaction_pool):
             raise ValueError('Trying to add invalid tx to pool, error from tx')
 
         logging.info('adding to tx_pool: %s', json.dumps(tx, cls=DymEncoder))
@@ -196,13 +211,13 @@ class Scorpio(object):
     def set_unspent_tx_outs(self, un_tx_outs):
         self.unspent_tx_outs = un_tx_outs
 
-    def add_block_to_chain(self, new_block):
-        if Block.is_valid_new_block(new_block, self.get_latest_block()):
+    def _add_block_to_chain(self, new_block):
+        if Block.is_valid_new_block(new_block, self._get_latest_block()):
             ret_val = Block.process_transactions(new_block.transactions, self._get_unspent_tx_outs(), new_block.index)
             if ret_val is None or len(ret_val) == 0:
                 return False
             else:
-                self.blockchain.push(new_block)
+                self.blockchain.append(new_block)
                 self.set_unspent_tx_outs(ret_val)
                 self.update_transaction_pool(ret_val)
                 return True
@@ -413,7 +428,7 @@ class Transaction(object):
         if is_enough:
             tx = Transaction()
             tx.tx_ins = list(map(Account.unsigned_tx_in, prepare_tx_outs))
-            tx.tx_outs = Account.create_transation_tx_outs(receiver_address, amount, account.pubkey_der, left_amount)
+            tx.tx_outs = Account.create_transation_tx_outs(receiver_address, amount, account.pubkey_der(), left_amount)
             tx.gene_transaction_id()
             tx.sign_tx_ins(account)
             return tx
@@ -431,7 +446,6 @@ class Transaction(object):
         self.id = Transaction._gene_transaction_id(self)
 
     def sign_tx_ins(self, account):
-        logging.error("transaction id", self.id)
         for tx_in in self.tx_ins:
             tx_in.signature = account.sign(self.id)
 
@@ -447,7 +461,7 @@ class Transaction(object):
             return False
         return True
 
-    def validate(self, unspent_tx_outs):
+    def validate(self, unspent_tx_outs): #TODO
         # check
         if not self.validate_struct():
             logging.error("invalid transaction struct")
@@ -461,12 +475,12 @@ class Transaction(object):
                 return False
         total_tx_in_amount = 0.0
         for tx_in in self.tx_ins:
-            for unspent_tx_out in Account.find_unspent_tx_outs(tx_in, unspent_tx_outs):
-                    total_tx_in_amount += unspent_tx_out.amount
+            unspent_tx_out = Account.find_unspent_tx_out(tx_in.tx_out_id, tx_in.tx_out_index, unspent_tx_outs)
+            if unspent_tx_out:
+                total_tx_in_amount += unspent_tx_out.amount
         total_tx_out_amount = 0.0
         for tx_out in self.tx_outs:
             total_tx_out_amount += tx_out.amount
-        logging.error(json.dumps(self, cls=DymEncoder))
         if total_tx_in_amount != total_tx_out_amount:
             logging.error("invalid amount, total_tx_in_amount: %0.6f, total_tx_out_amount: %0.6f" % (total_tx_in_amount, total_tx_out_amount))
             return False
@@ -508,13 +522,13 @@ class Block(object):
 
     @staticmethod
     def genesis_block():
-        return Block(0, 'd7b59f69ece171eceaccd18a79b297f13e14575ea7c8305cd60ed6b855525944', '', 0, [Block.genesis_transaction()], 1682354356, 0)
+        return Block(0, 'd7b59f69ece171eceaccd18a79b297f13e14575ea7c8305cd60ed6b855525944', '', 0, [Block.genesis_transaction()], 1523026288, 0)
 
 
-    def __init__(self, index, hash, prev_hash, difficulty, transactions, timestamp, nonce):
+    def __init__(self, index, hash, previous_hash, difficulty, transactions, timestamp, nonce):
         self.index = index
         self.hash = hash
-        self.prev_hash = prev_hash
+        self.previous_hash = previous_hash
         self.difficulty = difficulty
         self.transactions = transactions
         self.timestamp = timestamp
@@ -525,7 +539,6 @@ class Block(object):
         if not Block.validate_coinbase_transaction(transactions[0], block_index):
             logging.error("invalid coinbase transaction: %s" % json.dumps(transactions[0], cls=DymEncoder))
             return False
-        # tx_ins = [tx_in for tx_ins in for transaction in transactions]
         for transaction in transactions[1:]:
             if not transaction.validate(unspent_tx_outs):
                 return False
@@ -573,17 +586,17 @@ class Block(object):
 
     @staticmethod
     def calculate_hash_for_block(block):
-        return calculate_hash(block.index, block.previous_hash, block.timestamp, block.transactions, block.difficulty, block.nonce)
+        return Block.calculate_hash(block.index, block.previous_hash, block.timestamp, block.transactions, block.difficulty, block.nonce)
 
     @staticmethod
     def calculate_hash(index, previous_hash, timestamp, transactions, difficulty, nonce):
-        return hashlib.sha256(str(index) + previous_hash + str(timestamp) + json.dumps(transactions, cls=DymEncoder) + str(difficulty) + str(nonce)).hexdigest()
+        return hashlib.sha256((str(index) + previous_hash + str(timestamp) + json.dumps(transactions, cls=DymEncoder) + str(difficulty) + str(nonce)).encode()).hexdigest()
 
     @staticmethod
     def hash_matches_difficulty(hash, difficulty):
         hash_in_binary = hex_to_binary(hash)
         required_prefix = repeat_to_length("0", difficulty)
-        return hash_in_binary.startswith(requiredPrefix)
+        return hash_in_binary.startswith(required_prefix)
 
     @staticmethod
     def is_valid_block_structure(block):
@@ -591,6 +604,7 @@ class Block(object):
 
     @staticmethod
     def is_valid_timestamp(new_block, previous_block):
+        logging.warning("new_block", json.dumps(new_block, cls=DymEncoder), json.dumps(previous_block, cls=DymEncoder))
         return ( previous_block.timestamp - 60 < new_block.timestamp ) and (new_block.timestamp - 60 < get_current_timestamp())
 
     @staticmethod
