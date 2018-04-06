@@ -165,10 +165,10 @@ class Scorpio(object):
 
     def _add_to_transaction_pool(self, tx, unspent_tx_outs):
         if not self.validate_transaction(tx, unspent_tx_outs):
-            raise ValueError('Trying to add invalid tx to pool')
+            raise ValueError('Trying to add invalid tx to pool, error from transaction')
 
         if not is_valid_tx_for_pool(tx, transaction_pool):
-            raise ValueError('Trying to add invalid tx to pool')
+            raise ValueError('Trying to add invalid tx to pool, error from tx')
 
         logging.info('adding to tx_pool: %s', json.dumps(tx, cls=DymEncoder))
         self.transaction_pool.append(tx)
@@ -247,7 +247,7 @@ class Account(object):
         return Account.get_blance(self.pubkey_der, Scorpio.get_unspent_tx_outs())
 
     def sign(self, data):
-        return hexlify(self.privkey.ecdsa_serialize(self.privkey.ecdsa_sign(bytes(bytearray.fromhex(data)), raw=True))).decode('ascii')
+        return hexlify(self.privkey.ecdsa_serialize(self.privkey.ecdsa_sign(unhexlify(data)))).decode('ascii')
 
     @staticmethod
     def get_blance(address, unspent_tx_outs):
@@ -322,8 +322,7 @@ class TxIn(object):
         if utx_out is None:
             return False
         pubkey = PublicKey(unhexlify(utx_out.address), raw=True)
-        logging.error(transaction.id)
-        if not pubkey.ecdsa_verify(bytes(bytearray.fromhex(transaction.id)), pubkey.ecdsa_deserialize(unhexlify(self.signature))):
+        if not pubkey.ecdsa_verify(unhexlify(transaction.id), pubkey.ecdsa_deserialize(unhexlify(self.signature))):
             logging.error("invalid tx_in signature")
             return False
         return True
@@ -432,6 +431,7 @@ class Transaction(object):
         self.id = Transaction._gene_transaction_id(self)
 
     def sign_tx_ins(self, account):
+        logging.error("transaction id", self.id)
         for tx_in in self.tx_ins:
             tx_in.signature = account.sign(self.id)
 
@@ -457,16 +457,16 @@ class Transaction(object):
             return False
         for tx_in in self.tx_ins:
             if not tx_in.validate(self, unspent_tx_outs):
-                logging.error("invalid tx_in, signature: %s" % tx_in.signature)
+                logging.error("invalid tx_in, transaction id: %s,  signature: %s" % (self.id, tx_in.signature))
                 return False
         total_tx_in_amount = 0.0
         for tx_in in self.tx_ins:
-            result = Account.find_unspent_tx_outs(tx_in, unspent_tx_outs)
-            if result is not None:
-                total_tx_in_amount += result.amount
+            for unspent_tx_out in Account.find_unspent_tx_outs(tx_in, unspent_tx_outs):
+                    total_tx_in_amount += unspent_tx_out.amount
         total_tx_out_amount = 0.0
         for tx_out in self.tx_outs:
             total_tx_out_amount += tx_out.amount
+        logging.error(json.dumps(self, cls=DymEncoder))
         if total_tx_in_amount != total_tx_out_amount:
             logging.error("invalid amount, total_tx_in_amount: %0.6f, total_tx_out_amount: %0.6f" % (total_tx_in_amount, total_tx_out_amount))
             return False
