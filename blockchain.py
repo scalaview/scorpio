@@ -187,7 +187,7 @@ class Scorpio(object):
     def update_transaction_pool(self, unspent_tx_outs):
         invalid_txs = []
         for tx in self.transaction_pool:
-            for tx_in in tx.tx_ns:
+            for tx_in in tx.tx_ins:
                 if not UnspentTxOut.has_tx_in(tx_in, unspent_tx_outs):
                     invalid_txs.append(tx)
                     self.transaction_pool.remove(tx)

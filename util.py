@@ -106,3 +106,19 @@ def sync_blocks(nodes):
                     sync_block(peer)
         except ValueError as e:
             logging.error(e)
+
+def sync_transaction_pool():
+    for peer in config['nodes']:
+        try:
+            res = requests.get("%s/transaction_pool" % peer)
+            if res.status_code != 200:
+                raise ValueError("transaction_pool from %s fail, status code: %d" %(peer, res.status_code))
+            json_data = res.json()
+            if json_data.get("err") != 0:
+                raise ValueError("transaction_pool from %s, invalid response, message %s" %(peer, json_data.get("message")))
+            data = json_data.get("data")
+            if data:
+                for tx in data:
+                    Scorpio.add_to_transaction_pool(transaction_decoder(tx), Scorpio.get_unspent_tx_outs())
+        except ValueError as e:
+            logging.error(e)

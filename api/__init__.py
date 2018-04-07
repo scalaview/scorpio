@@ -117,6 +117,7 @@ def transactions():
             return json_res(err=1015, message="invalid transactions")
         for tx in transactions:
             Scorpio.add_to_transaction_pool(transaction_decoder(tx), Scorpio.get_unspent_tx_outs())
+            util.broad_cast_transaction_pool()
         return json_res(Scorpio.get_transaction_pool())
     return json_res(err=1013, message="miss params")
 

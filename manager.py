@@ -14,6 +14,7 @@ def mine():
     import util
     config['nodes'].add('http://127.0.0.1:5000')
     util.sync_blocks(config['nodes'])
+    util.sync_transaction_pool()
     block = blockchain.Block.generate_next_block()
 
 
