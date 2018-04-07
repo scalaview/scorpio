@@ -410,15 +410,16 @@ class Transaction(object):
         available_tx_outs = [ tx_out for tx_out in unspent_tx_outs if tx_out.address == account.pubkey_der() ]
         tx_ins = [ tx_in for transaction in transaction_pool for tx_in in transaction.tx_ins]
 
-        # from itertools import filterfalse
-        # available_tx_outs[:] = filterfalse(lambda tx_out:  , available_tx_outs)
+        invalid_tx_outs = []
         for tx_out in available_tx_outs:
             tx_in = None
             for _tx_in in tx_ins:
                 if _tx_in.tx_out_index == tx_out.tx_out_index and _tx_in.tx_out_id == tx_out.tx_out_id:
                     tx_in = _tx_in
             if tx_in is not None:
-                available_tx_outs.remove(tx_out)
+                invalid_tx_outs.append(tx_out)
+        for tx_out in invalid_tx_outs:
+            available_tx_outs.remove(tx_out)
 
         is_enough, prepare_tx_outs, left_amount = Account.is_enough(amount, available_tx_outs)
         if is_enough:
