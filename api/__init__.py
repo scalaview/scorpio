@@ -95,6 +95,7 @@ def balance(address=Scorpio.get_pubkey_der()):
     balance = Account.get_blance(address, Scorpio.get_unspent_tx_outs())
     return json_res({'balance': balance}), 200
 
+# TODO remove
 @api.route('/send_transaction', methods=['POST'])
 def send_transaction():
     params = request.get_json(silent=True)
