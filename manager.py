@@ -9,15 +9,14 @@ app = create_app(os.getenv('CHAIN_CONFIG') or 'default')
 manager = Manager(app)
 
 @manager.command
-def mine():
+@manager.option('-n', '--node', help='Node Url')
+def mine(node='http://127.0.0.1:5000'):
     from config import config
     import util
-    config['nodes'].add('http://127.0.0.1:5000')
-    util.sync_blocks(config['nodes'])
+    config['nodes'].add(node)
+    util.sync_blocks()
     util.sync_transaction_pool()
     block = blockchain.Block.generate_next_block()
-
-
 
 if __name__ == '__main__':
     manager.run()

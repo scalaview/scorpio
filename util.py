@@ -90,7 +90,7 @@ def sync_block(peer):
     except ValueError as e:
         logging.error(e)
 
-def sync_blocks(nodes):
+def sync_blocks(nodes=config['nodes']):
     for peer in nodes:
         try:
             res = requests.get("%s/latest_block" % peer)

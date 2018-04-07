@@ -133,7 +133,7 @@ def add_peer():
         if not url_validator(url):
             return json_res(err=1016, message="invalid url")
         config["nodes"].add(url)
-        sync_blocks(config["nodes"])
+        sync_blocks()
         logging.error("sync_blocks finish")
         return json_res()
     return json_res(err=1013, message="miss params")
