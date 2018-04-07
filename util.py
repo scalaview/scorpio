@@ -4,6 +4,7 @@ import blockchain
 import config as config_obj
 import logging
 import json
+import threading
 
 config = config_obj.config
 Scorpio = blockchain.Scorpio
@@ -25,6 +26,9 @@ def url_validator(url):
     return regex.match(url)
 
 def broadcast_latest():
+    threading.Thread(target=broadcast_latest_with_thread).start()
+
+def broadcast_latest_with_thread():
     for peer in config["nodes"]:
         post_data = {"block": Scorpio.get_latest_block()}
         headers = {'Content-type': 'application/json'}
@@ -34,6 +38,9 @@ def broadcast_latest():
             logging.error(e)
 
 def broad_cast_transaction_pool():
+    threading.Thread(target=broad_cast_transaction_pool).start()
+
+def broad_cast_transaction_pool_with_thread():
     for peer in config["nodes"]:
         post_data = {"transactions": json.dumps(Scorpio.get_transaction_pool(), cls=DymEncoder)}
         headers = {'Content-type': 'application/json'}
