@@ -190,10 +190,12 @@ class Scorpio(object):
             for tx_in in tx.tx_ins:
                 if not UnspentTxOut.has_tx_in(tx_in, unspent_tx_outs):
                     invalid_txs.append(tx)
-                    self.transaction_pool.remove(tx)
-                    break
+
         if len(invalid_txs) > 0:
             logging.error('removing the following transactions from txPool: %s', json.dumps(invalid_txs, cls=DymEncoder))
+            for tx in invalid_txs:
+                self.transaction_pool.remove(tx)
+
 
     def _get_blockchain(self):
         return self.blockchain
@@ -416,7 +418,7 @@ class Transaction(object):
                 if _tx_in.tx_out_index == tx_out.tx_out_index and _tx_in.tx_out_id == tx_out.tx_out_id:
                     tx_in = _tx_in
             if tx_in is not None:
-                available_tx_outs.remove(tx_in)
+                available_tx_outs.remove(tx_out)
 
         is_enough, prepare_tx_outs, left_amount = Account.is_enough(amount, available_tx_outs)
         if is_enough:
@@ -539,7 +541,6 @@ class Block(object):
                 return False
         return True
 
-
     @staticmethod
     def validate_coinbase_transaction(transaction, index):
         if transaction is None:
@@ -558,7 +559,7 @@ class Block(object):
             for index, tx_out in enumerate(transaction.tx_outs):
                 tmp_unspent_tx_outs.append(UnspentTxOut(transaction.id, index, tx_out.address, tx_out.amount))
             for tx_in in transaction.tx_ins:
-                prepare_tx_outs.append(UnspentTxOut(transaction.id, tx_in.tx_out_index, "", 0))
+                prepare_tx_outs.append(UnspentTxOut(tx_in.tx_out_id, tx_in.tx_out_index, "", 0))
 
         result = [unspent_tx_out for unspent_tx_out in unspent_tx_outs if not Account.find_unspent_tx_out(unspent_tx_out.tx_out_id, unspent_tx_out.tx_out_index, prepare_tx_outs) ]
         return result + tmp_unspent_tx_outs
