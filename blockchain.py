@@ -18,14 +18,7 @@ def get_current_timestamp():
     return int(time.time())
 
 def repeat_to_length(string_to_expand, length):
-    logging.error("repeat_to_length", string_to_expand, length)
     return (string_to_expand * (int(length/len(string_to_expand))+1))[:length]
-
-def broadcast_latest():
-    pass
-
-def broad_cast_transaction_pool():
-    pass
 
 def hex_to_binary(string):
     result = ''
@@ -143,7 +136,7 @@ class Scorpio(object):
 
     @staticmethod
     def is_valid_chain(blockchain_to_validate):
-        if json.dumps(blockchain_to_validate[0], cls=DymEncoder) != json.dumps(Block.genesis_block, cls=DymEncoder):
+        if json.dumps(blockchain_to_validate[0], cls=DymEncoder) != json.dumps(Block.genesis_block(), cls=DymEncoder):
             return None
 
         unspent_tx_outs = [];
@@ -157,7 +150,7 @@ class Scorpio(object):
 
     @staticmethod
     def replace_chain(new_blocks):
-        Scorpio.instance.replace_chain(new_blocks)
+        Scorpio.instance._replace_chain(new_blocks)
 
     @staticmethod
     def handle_received_transaction(transaction):
@@ -224,16 +217,17 @@ class Scorpio(object):
 
         return False
 
-    def replace_chain(self, new_blocks):
+    def _replace_chain(self, new_blocks):
         unspent_tx_outs = Scorpio.is_valid_chain(new_blocks)
         if unspent_tx_outs is not None and Scorpio.get_accumulated_difficulty(new_blocks) > Scorpio.get_accumulated_difficulty(self._get_blockchain()):
             logging.info('Received blockchain is valid. Replacing current blockchain with received blockchain')
             self.blockchain = new_blocks
             self.set_unspent_tx_outs(unspent_tx_outs)
             self.update_transaction_pool(self._get_unspent_tx_outs())
-            broadcastLatest()
+            import util
+            util.broadcast_latest()
         else:
-            logging.error("Received blockchain invalid")
+            logging.error("Received blockchain invalid, we are more fresh")
 
 class Account(object):
     def __init__(self, key=None):
@@ -439,7 +433,8 @@ class Transaction(object):
     def send_transaction(address, amount):
         tx = Transaction.create_transaction(Scorpio.get_privkey_der(), address, amount, Scorpio.get_unspent_tx_outs(), Scorpio.get_transaction_pool())
         Scorpio.add_to_transaction_pool(tx, Scorpio.get_unspent_tx_outs())
-        broad_cast_transaction_pool()
+        import util
+        util.broad_cast_transaction_pool()
         return tx
 
     def gene_transaction_id(self):
@@ -579,7 +574,8 @@ class Block(object):
         pre_block = Scorpio.get_latest_block()
         new_block = Block.find_block((pre_block.index+1), pre_block.hash, get_current_timestamp, block_data, Scorpio.get_difficulty(Scorpio.get_blockchain()))
         if Scorpio.add_block_to_chain(new_block):
-            broadcast_latest()
+            import util
+            util.broadcast_latest()
             return new_block
         else:
             return None
@@ -604,7 +600,6 @@ class Block(object):
 
     @staticmethod
     def is_valid_timestamp(new_block, previous_block):
-        logging.warning("new_block", json.dumps(new_block, cls=DymEncoder), json.dumps(previous_block, cls=DymEncoder))
         return ( previous_block.timestamp - 60 < new_block.timestamp ) and (new_block.timestamp - 60 < get_current_timestamp())
 
     @staticmethod
@@ -626,9 +621,7 @@ class Block(object):
     @staticmethod
     def is_valid_new_block(new_block, previous_block):
         if not Block.is_valid_block_structure(new_block):
-            logging.error('invalid block structure: %s' % json.dumps(new_block, cls=DymEncoder))
             return False
-
         if (previous_block.index + 1) != new_block.index:
             logging.error('invalid index')
             return False

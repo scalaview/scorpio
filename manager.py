@@ -1,7 +1,7 @@
 import os
 from flask_script import Manager, Shell, Server
 from app import create_app
-from blockchain import Scorpio, DymEncoder, Block
+import blockchain
 import logging
 import json
 
@@ -10,7 +10,13 @@ manager = Manager(app)
 
 @manager.command
 def mine():
-    block = Block.generate_next_block()
+    from config import config
+    import util
+    config['nodes'].add('http://127.0.0.1:5000')
+    util.sync_blocks(config['nodes'])
+    block = blockchain.Block.generate_next_block()
+
+
 
 if __name__ == '__main__':
     manager.run()

@@ -1,6 +1,7 @@
 import os
 import json
-from blockchain import Scorpio, DymEncoder
+import blockchain
+
 basedir = os.path.abspath(os.path.dirname(__file__))
 config_path = basedir + "/config.json"
 config_json = json.loads(open(config_path).read())
@@ -13,9 +14,8 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'hard to guess string'
     @staticmethod
     def init_app(app):
-        global myblockchain
-        myblockchain = Scorpio.build_instance(os.environ.get("PRIV_KEY"))
-        app.json_encoder = DymEncoder
+        blockchain.Scorpio.build_instance(os.environ.get("PRIV_KEY"))
+        app.json_encoder = blockchain.DymEncoder
 
 
 class DevelopmentConfig(Config):
@@ -50,5 +50,7 @@ config = {
     'development': DevelopmentConfig,
     'staging': StagingConfig,
     'production': ProductionConfig,
-    'default': DevelopmentConfig
+    'default': DevelopmentConfig,
+    'nodes': set(),
+    'url': os.environ.get("SELFHOST") or 'http://127.0.0.1:5001'
 }

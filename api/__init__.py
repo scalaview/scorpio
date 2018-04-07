@@ -1,7 +1,10 @@
 from flask import Blueprint, jsonify, request
 from blockchain import Scorpio, Account, Transaction, DymEncoder
+from util import url_validator, sync_blocks, block_decoder, transaction_decoder
+from config import config
 import logging
 import json
+import util
 
 api = Blueprint('api', __name__)
 
@@ -17,9 +20,31 @@ def before_request():
         if not request.is_json:
             return json_res(err=1005, message="only accep application/json")
 
+@api.errorhandler(Exception)
+def handle_error(e):
+    code = 500
+    logging.error(str(e))
+    return jsonify(error=str(e)), code
+
 @api.route('/blocks', methods=['GET'])
 def blocks():
     return json_res(Scorpio.get_blockchain()), 200
+
+@api.route('/block', methods=['POST'])
+def receive_block():
+    params = request.get_json(silent=True)
+    if params:
+        json_block = params.get("block")
+        if not json_block:
+            return json_res(err=1017, message="invalid block")
+        if Scorpio.add_block_to_chain(block_decoder(json_block)):
+            util.broadcast_latest()
+        return json_res(Scorpio.get_blockchain()), 200
+    return json_res(err=1013, message="miss params")
+
+@api.route('/latest_block', methods=['GET'])
+def latest_block():
+    return json_res(Scorpio.get_latest_block()), 200
 
 @api.route('/block/<hash>', methods=['GET'])
 def block(hash):
@@ -82,9 +107,33 @@ def send_transaction():
         return json_res(result)
     return json_res(err=1013, message="miss params")
 
+
+@api.route('/transactions', methods=['POST'])
+def transactions():
+    params = request.get_json(silent=True)
+    if params:
+        transactions = params.get('transactions')
+        if not transactions:
+            return json_res(err=1015, message="invalid transactions")
+        for tx in transactions:
+            Scorpio.add_to_transaction_pool(transaction_decoder(tx), Scorpio.get_unspent_tx_outs())
+        return json_res(Scorpio.get_transaction_pool())
+    return json_res(err=1013, message="miss params")
+
 @api.route('/transaction_pool', methods=['GET'])
 def transaction_pool():
     return json_res(Scorpio.get_transaction_pool())
 
-
+@api.route('/add_peer', methods=['POST'])
+def add_peer():
+    params = request.get_json(silent=True)
+    if params:
+        url = params.get('url')
+        if not url_validator(url):
+            return json_res(err=1016, message="invalid url")
+        config["nodes"].add(url)
+        sync_blocks(config["nodes"])
+        logging.error("sync_blocks finish")
+        return json_res()
+    return json_res(err=1013, message="miss params")
 
