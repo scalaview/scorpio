@@ -516,7 +516,7 @@ class Block(object):
     @staticmethod
     def genesis_transaction():
 
-        return Transaction(id="c39320b3287d3d1889f0b4b7eb8ab7b5b07e274d331aacf9059f433fca60ef53", tx_ins=[TxIn(tx_out_id="", tx_out_index=0, signature='')], tx_outs=[TxOut(address="02e525a9b78192e0a589a0ef74fc053ec97f5aabffe74263f968a57d08424a1e06", amount=Block.reward())])
+        return Transaction(id="8e7b7a29be988415d963417a428b26e718f3fcffe9ccc8e402bf9423f960b2a8", tx_ins=[TxIn(tx_out_id="", tx_out_index=0, signature='')], tx_outs=[TxOut(address="02e525a9b78192e0a589a0ef74fc053ec97f5aabffe74263f968a57d08424a1e06", amount=Block.reward())])
 
     @staticmethod
     def genesis_block():
