@@ -385,7 +385,7 @@ class Transaction(object):
     @staticmethod
     def _gene_transaction_id(transaction):
         tx_in_str = reduce((lambda x, y: x+y), list(map( (lambda tx_in: tx_in.tx_out_id + str(tx_in.tx_out_index)), transaction.tx_ins)))
-        tx_out_str = reduce((lambda x, y: x+y), list(map( (lambda tx_in: ( "%s{%0.6f}" % (tx_in.address, tx_in.amount) )), transaction.tx_outs)))
+        tx_out_str = reduce((lambda x, y: x+y), list(map( (lambda tx_in: ( tx_in.address + "%0.6f" % (tx_in.amount) )), transaction.tx_outs)))
 
         return hashlib.sha256((tx_in_str+tx_out_str).encode()).hexdigest()
 
