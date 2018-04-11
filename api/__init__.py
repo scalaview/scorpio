@@ -102,9 +102,10 @@ def send_transaction():
     if params:
         address = params.get('address')
         amount = params.get('amount')
-        if not address or type(address) != str or not amount or (type(amount) != int and type(amount) != float):
-            return json_res(err=1015, message="invalid address or amount")
-        result = Transaction.send_transaction(address, amount)
+        privkey = params.get('privkey')
+        if not privkey or type(privkey) != str or not address or type(address) != str or not amount or (type(amount) != int and type(amount) != float):
+            return json_res(err=1015, message="invalid privkey, address or amount")
+        result = Transaction.send_transaction_by_key(privkey, address, amount)
         return json_res(result)
     return json_res(err=1013, message="miss params")
 
