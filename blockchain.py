@@ -194,7 +194,8 @@ class Scorpio(object):
         if len(invalid_txs) > 0:
             logging.error('removing the following transactions from txPool: %s', json.dumps(invalid_txs, cls=DymEncoder))
             for tx in invalid_txs:
-                self.transaction_pool.remove(tx)
+                if tx in self.transaction_pool:
+                    self.transaction_pool.remove(tx)
 
 
     def _get_blockchain(self):
@@ -434,7 +435,11 @@ class Transaction(object):
 
     @staticmethod
     def send_transaction(address, amount):
-        tx = Transaction.create_transaction(Scorpio.get_privkey_der(), address, amount, Scorpio.get_unspent_tx_outs(), Scorpio.get_transaction_pool())
+        return Transaction.send_transaction_by_key(Scorpio.get_privkey_der(), address, amount)
+
+    @staticmethod
+    def send_transaction_by_key(privkey, address, amount):
+        tx = Transaction.create_transaction(privkey, address, amount, Scorpio.get_unspent_tx_outs(), Scorpio.get_transaction_pool())
         Scorpio.add_to_transaction_pool(tx, Scorpio.get_unspent_tx_outs())
         import util
         util.broad_cast_transaction_pool()
