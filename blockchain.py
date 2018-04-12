@@ -593,7 +593,7 @@ class Block(object):
 
     @staticmethod
     def calculate_hash(index, previous_hash, timestamp, transactions, difficulty, nonce):
-        return hashlib.sha256((str(index) + previous_hash + str(timestamp) + json.dumps(transactions, cls=DymEncoder) + str(difficulty) + str(nonce)).encode()).hexdigest()
+        return hashlib.sha256((str(index) + previous_hash + str(timestamp) + "".join([ tx.id for tx in transactions]) + str(difficulty) + str(nonce)).encode()).hexdigest()
 
     @staticmethod
     def hash_matches_difficulty(hash, difficulty):
