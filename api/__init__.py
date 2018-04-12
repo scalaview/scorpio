@@ -140,3 +140,7 @@ def add_peer():
         return json_res()
     return json_res(err=1013, message="miss params")
 
+@api.route('/coinbase_transaction', methods=['GET'])
+def coinbase_tx():
+    coinbase_tx = Transaction.generate_coinbase_transaction(Scorpio.get_pubkey_der(), Scorpio.get_latest_block().index + 1)
+    return json_res(coinbase_tx)

@@ -122,3 +122,19 @@ def sync_transaction_pool():
                     Scorpio.add_to_transaction_pool(transaction_decoder(tx), Scorpio.get_unspent_tx_outs())
         except ValueError as e:
             logging.error(e)
+
+def get_coinbase_transaction(peer):
+    try:
+        res = requests.get("%s/coinbase_transaction" % peer)
+        if res.status_code != 200:
+            raise ValueError("coinbase_transaction from %s fail, status code: %d" %(peer, res.status_code))
+        json_data = res.json()
+        if json_data.get("err") != 0:
+            raise ValueError("coinbase_transaction from %s, invalid response, message %s" %(peer, json_data.get("message")))
+        data = json_data.get("data")
+        if data:
+            return transaction_decoder(data)
+        else:
+            raise ValueError("miss transaction")
+    except ValueError as e:
+        logging.error(e)

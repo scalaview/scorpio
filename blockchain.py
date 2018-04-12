@@ -495,7 +495,7 @@ class Transaction(object):
 
     def is_coinbase(self, block_index):
         if not self.validate_transaction_id():
-            logging.error("invalid transaction id")
+            logging.error("invalid transaction id", Transaction._gene_transaction_id(self))
             return False
         if len(self.tx_ins) != 1:
             logging.error("invalid tx_ins")
@@ -644,7 +644,10 @@ class Block(object):
 
     @staticmethod
     def generate_next_block():
-        coinbase_tx = Transaction.generate_coinbase_transaction(Scorpio.get_pubkey_der(), Scorpio.get_latest_block().index + 1)
+        return Block.generate_next_block_from_remote_coinbas(Transaction.generate_coinbase_transaction(Scorpio.get_pubkey_der(), Scorpio.get_latest_block().index + 1))
+
+    @staticmethod
+    def generate_next_block_from_remote_coinbas(coinbase_tx):
         block_data = [coinbase_tx] + Scorpio.get_transaction_pool()
         return Block.generate_raw_next_block(block_data)
 

@@ -16,7 +16,8 @@ def mine(node='http://127.0.0.1:5000'):
     config['nodes'].add(node)
     util.sync_blocks()
     util.sync_transaction_pool()
-    block = blockchain.Block.generate_next_block()
+    coinbase_tx = util.get_coinbase_transaction(node)
+    block = blockchain.Block.generate_next_block_from_remote_coinbas(coinbase_tx)
 
 if __name__ == '__main__':
     manager.run()
