@@ -14,10 +14,11 @@ def mine(node='http://127.0.0.1:5000'):
     from config import config
     import util
     config['nodes'].add(node)
-    util.sync_blocks()
-    util.sync_transaction_pool()
-    coinbase_tx = util.get_coinbase_transaction(node)
-    block = blockchain.Block.generate_next_block_from_remote_coinbas(coinbase_tx)
+    while True:
+        util.sync_blocks()
+        util.sync_transaction_pool()
+        coinbase_tx = util.get_coinbase_transaction(node)
+        block = blockchain.Block.generate_next_block_from_remote_coinbas(coinbase_tx)
 
 
 @manager.command

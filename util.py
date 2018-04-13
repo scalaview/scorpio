@@ -102,7 +102,9 @@ def sync_blocks(nodes=config['nodes']):
             data = json_data.get("data")
             if data:
                 latest_block = Scorpio.get_latest_block()
-                if data.get('index') >= latest_block.index or data.get('hash') != latest_block.hash:
+                if data.get('index') == latest_block.index and data.get('hash') == latest_block.hash:
+                    pass
+                else:
                     sync_block(peer)
         except ValueError as e:
             logging.error(e)
