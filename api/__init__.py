@@ -20,11 +20,10 @@ def before_request():
         if not request.is_json:
             return json_res(err=1005, message="only accep application/json")
 
-# @api.errorhandler(Exception)
-# def handle_error(e):
-#     code = 500
-#     logging.error(str(e))
-#     return jsonify(error=str(e)), code
+@api.errorhandler(Exception)
+def handle_error(e):
+    logging.error(str(e))
+    return json_res(err=500, message=str(e))
 
 @api.route('/blocks', methods=['GET'])
 def blocks():
