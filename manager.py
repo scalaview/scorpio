@@ -19,6 +19,7 @@ def mine(node='http://127.0.0.1:5000'):
         util.sync_transaction_pool()
         coinbase_tx = util.get_coinbase_transaction(node)
         block = blockchain.Block.generate_next_block_from_remote_coinbas(coinbase_tx)
+        print("generate block %s" % block.hash)
 
 
 @manager.command
