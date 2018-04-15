@@ -7,7 +7,7 @@
 * generate a secp256k1 keypair yourself or [enumaelish.tk](https://enumaelish.tk)
 ```shell
 pip3 install -r requirements.txt
-export export PRIV_KEY="your private key"
+export PRIV_KEY="your private key"
 python3 manager.py runserver
 ```
 ### What next
