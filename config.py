@@ -23,18 +23,18 @@ class DevelopmentConfig(Config):
     SQLALCHEMY_TRACK_MODIFICATIONS = True
     option = Option(config_json.get("development"))
     SQLALCHEMY_DATABASE_URI = os.environ.get('DEV_DATABASE_URL') or \
-        'mysql://%s:%s@%s/%s' % (option.username, option.password, option.hostname, option.database)
+        'sqlite://%s/%s' % (option.path, option.database)
 
 class StagingConfig(Config):
     TESTING = True
     option = Option(config_json.get("staging"))
     SQLALCHEMY_DATABASE_URI = os.environ.get('TEST_DATABASE_URL') or \
-        'mysql://%s:%s@%s/%s' % (option.username, option.password, option.hostname, option.database)
+        'sqlite://%s/%s' % (option.path, option.database)
 
 class ProductionConfig(Config):
     option = Option(config_json.get("production"))
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'mysql://%s:%s@%s/%s' % (option.username, option.password, option.hostname, option.database)
+        'sqlite://%s/%s' % (option.path, option.database)
 
     @classmethod
     def init_app(cls, app):
