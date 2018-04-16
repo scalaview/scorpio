@@ -2,6 +2,7 @@ import os
 import json
 import blockchain
 
+
 basedir = os.path.abspath(os.path.dirname(__file__))
 config_path = basedir + "/config.json"
 config_json = json.loads(open(config_path).read())
@@ -14,13 +15,16 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'hard to guess string'
     @staticmethod
     def init_app(app):
-        blockchain.Scorpio.build_instance(os.environ.get("PRIV_KEY"))
         app.json_encoder = blockchain.DymEncoder
+        app.app_context().push()
+        blockchain.Scorpio.build_instance(os.environ.get("PRIV_KEY"))
+        import util
+        util.import_from_db()
 
 
 class DevelopmentConfig(Config):
     DEBUG = True
-    JSONIFY_PRETTYPRINT_REGULAR = False
+    JSONIFY_PRETTYPRINT_REGULAR = True
     SQLALCHEMY_TRACK_MODIFICATIONS = True
     option = Option(config_json.get("development"))
     SQLALCHEMY_DATABASE_URI = os.environ.get('DEV_DATABASE_URL') or \

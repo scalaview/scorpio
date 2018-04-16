@@ -192,7 +192,7 @@ class Scorpio(object):
                     invalid_txs.append(tx)
 
         if len(invalid_txs) > 0:
-            logging.error('removing the following transactions from txPool: %s', json.dumps(invalid_txs, cls=DymEncoder))
+            logging.info('removing the following transactions from txPool: %s', json.dumps(invalid_txs, cls=DymEncoder))
             for tx in invalid_txs:
                 if tx in self.transaction_pool:
                     self.transaction_pool.remove(tx)
@@ -230,7 +230,7 @@ class Scorpio(object):
             import util
             util.broadcast_latest()
         else:
-            logging.error("Received blockchain invalid, we are more fresh")
+            logging.error("Received blockchain invalid, no need replace")
 
 class Account(object):
     def __init__(self, key=None):
@@ -339,6 +339,10 @@ class TxIn(object):
             return False
         return True
 
+    @staticmethod
+    def db2obj(dbtx_in):
+        return TxIn(tx_out_id=dbtx_in.tx_out_id, tx_out_index=dbtx_in.tx_out_index, signature=dbtx_in.signature)
+
 
 class TxOut(object):
     def __init__(self, address, amount):
@@ -348,6 +352,10 @@ class TxOut(object):
     @staticmethod
     def validate(address):
         True
+
+    @staticmethod
+    def db2obj(dbtx_out):
+        return TxOut(address=dbtx_out.address, amount=dbtx_out.amount)
 
     def validate_struct(self):
         if not isinstance(self.address, str):
@@ -445,6 +453,10 @@ class Transaction(object):
         util.broad_cast_transaction_pool()
         return tx
 
+    @staticmethod
+    def db2obj(dbtx):
+        return Transaction(id=dbtx.txid, tx_ins=[TxIn.db2obj(dbtx_in) for dbtx_in in dbtx.tx_ins], tx_outs=[TxOut.db2obj(dbtx_out) for dbtx_out in dbtx.tx_outs])
+
     def gene_transaction_id(self):
         self.id = Transaction._gene_transaction_id(self)
 
@@ -539,7 +551,7 @@ class Block(object):
 
     @staticmethod
     def db2obj(dbblock):
-        return Block(dbblock.index, dbblock.hash, dbblock.hash, dbblock.difficulty, None, dbblock.timestamp, dbblock.nonce)
+        return Block(index=dbblock.index, hash=dbblock.hash, previous_hash=dbblock.previous_hash, difficulty=dbblock.difficulty, transactions=[ Transaction.db2obj(dbtx) for dbtx in dbblock.transactions], timestamp=int(time.mktime(dbblock.timestamp.timetuple())), nonce=dbblock.nonce)
 
     @staticmethod
     def validate(transactions, unspent_tx_outs, block_index):

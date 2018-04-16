@@ -1,10 +1,11 @@
 from flask import Blueprint, jsonify, request
-from blockchain import Scorpio, Account, Transaction, DymEncoder
+from blockchain import Scorpio, Account, Transaction, DymEncoder, Block
 from util import url_validator, sync_blocks, block_decoder, transaction_decoder
 from config import config
 import logging
 import json
 import util
+from models import DBBlock, DBTransaction, DBTxIn, DBTxOut
 
 api = Blueprint('api', __name__)
 
@@ -38,6 +39,7 @@ def receive_block():
             return json_res(err=1017, message="invalid block")
         if Scorpio.add_block_to_chain(block_decoder(json_block)):
             util.broadcast_latest()
+            util.block_serialization(block_decoder(json_block))
         return json_res(Scorpio.get_blockchain()), 200
     return json_res(err=1013, message="miss params")
 
@@ -48,9 +50,9 @@ def latest_block():
 @api.route('/block/<hash>', methods=['GET'])
 def block(hash):
     target = {}
-    for block in Scorpio.get_blockchain():
-        if block.hash == hash:
-            target = block
+    dbblock = DBBlock.query.filter_by(hash=hash).first()
+    if dbblock:
+        target = Block.db2obj(dbblock)
     return json_res(target), 200
 
 @api.route('/transaction/<id>', methods=['GET'])

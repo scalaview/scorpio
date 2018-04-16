@@ -28,7 +28,7 @@ class DBBlock(BaseModel, Model):
 
     @property
     def transactions(self):
-        return DBTransaction.query.filter_by(id=self.id).order_by(DBTransaction.position).all()
+        return DBTransaction.query.filter_by(block_id=self.id).order_by(DBTransaction.position).all()
 
     @staticmethod
     def build(block):
@@ -41,7 +41,6 @@ class DBBlock(BaseModel, Model):
         total = DBBlock.query.filter(DBBlock.index>0).count()
         for chunkstart in range(start, total, offet):
             dbblocks = DBBlock.query.filter(DBBlock.index>0).order_by(DBBlock.index).offset(chunkstart).limit(offet).all()
-            print(dbblocks)
             if func is not None:
                 func(dbblocks)
 
@@ -59,7 +58,7 @@ class DBTransaction(BaseModel, Model):
 
     @property
     def tx_outs(self):
-        return DBTxOut.query.filter_by(transaction_id=self.id).order_by(DBTxIn.position).all()
+        return DBTxOut.query.filter_by(transaction_id=self.id).order_by(DBTxOut.position).all()
 
     @staticmethod
     def build(block_id, transaction, position):

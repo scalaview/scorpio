@@ -167,22 +167,29 @@ def block_serialization(block):
         db.session.add(dbtransaction)
         db.session.commit()
         for tx_in_idx, tx_in in enumerate(tx.tx_ins):
-            dbtx_in = DBTxIn.build(tx.id, tx_in, tx_in_idx)
+            dbtx_in = DBTxIn.build(dbtransaction.id, tx_in, tx_in_idx)
             db.session.add(dbtx_in)
         db.session.commit()
         for tx_out_idx, tx_out in enumerate(tx.tx_outs):
-            dbtx_out = DBTxOut.build(tx.id, tx_out, tx_out_idx)
+            dbtx_out = DBTxOut.build(dbtransaction.id, tx_out, tx_out_idx)
             db.session.add(dbtx_out)
         db.session.commit()
 
 
 def import_from_db():
+    def add_block_to_chain(dbblocks):
+        for dbblock in dbblocks:
+            if not Scorpio.add_block_to_chain(Block.db2obj(dbblock)):
+                raise ValueError("block %s invalid" % dbblock.hash)
+
     from models import DBBlock, DBTransaction, DBTxIn, DBTxOut
     block = Block.db2obj(DBBlock.query.filter_by(index=0).first())
     if Block.genesis_block().hash == block.hash:
         total = DBBlock.query.count()
         if len(Scorpio.get_blockchain()) < total:
             Scorpio.instance.blockchain = [Block.genesis_block()]
-            DBBlock.batch_all(func=lambda dbblocks : )
+            DBBlock.batch_all(func=add_block_to_chain)
     else:
         pass
+
+
