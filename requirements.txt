@@ -4,3 +4,4 @@ secp256k1==0.13.2
 flask_script==2.0.6
 flask-sqlalchemy==2.3.2
 tornado==5.0.2
+flask_migrate==2.1.1

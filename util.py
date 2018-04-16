@@ -140,3 +140,39 @@ def get_coinbase_transaction(peer):
             raise ValueError("miss transaction")
     except ValueError as e:
         logging.error(e)
+
+def import_from_json(file):
+    from models import DBBlock, DBTransaction, DBTxIn, DBTxOut
+    data = json.loads(open(file).read())
+    blocks = []
+    for index, json_block in enumerate(data.get('data')):
+        blocks.append(block_decoder(json_block))
+    return blocks
+
+
+def chain_serialization(blocks):
+    from models import DBBlock, DBTransaction, DBTxIn, DBTxOut
+    from app import db
+    for block in blocks:
+        block_serialization(block)
+
+def block_serialization(block):
+    from models import DBBlock, DBTransaction, DBTxIn, DBTxOut
+    from app import db
+    dbblock = DBBlock.build(block)
+    db.session.add(dbblock)
+    db.session.commit()
+    for index, tx in enumerate(block.transactions):
+        dbtransaction = DBTransaction.build(dbblock.id, tx, index)
+        db.session.add(dbtransaction)
+        db.session.commit()
+        for tx_in_idx, tx_in in enumerate(tx.tx_ins):
+            dbtx_in = DBTxIn.build(tx.id, tx_in, tx_in_idx)
+            db.session.add(dbtx_in)
+        db.session.commit()
+        for tx_out_idx, tx_out in enumerate(tx.tx_outs):
+            dbtx_out = DBTxOut.build(tx.id, tx_out, tx_out_idx)
+            db.session.add(dbtx_out)
+        db.session.commit()
+
+

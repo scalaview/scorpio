@@ -1,14 +1,14 @@
 {
     "development": {
         "database": "",
-        "path": "",
+        "path": ""
     },
     "staging": {
         "database": "",
-        "path": "",
+        "path": ""
     },
     "production": {
         "database": "",
-        "path": "",
+        "path": ""
     }
 }
