@@ -7,6 +7,7 @@ import blockchain
 import logging
 import json
 import models
+import util
 
 app = create_app(os.getenv('CHAIN_CONFIG') or 'default')
 manager = Manager(app)
@@ -15,7 +16,7 @@ manager.add_command('db', MigrateCommand)
 
 def make_shell_context():
     return dict(get_debug_queries=get_debug_queries, app=app, db=db, DBBlock=models.DBBlock, DBTransaction=models.DBTransaction, \
-        DBTxIn=models.DBTxIn, DBTxOut=models.DBTxOut)
+        DBTxIn=models.DBTxIn, DBTxOut=models.DBTxOut, util=util)
 manager.add_command("shell", Shell(make_context=make_shell_context))
 
 @manager.command
@@ -53,7 +54,7 @@ def mine(node='http://127.0.0.1:5000'):
         util.sync_blocks()
         util.sync_transaction_pool()
         coinbase_tx = util.get_coinbase_transaction(node)
-        block = blockchain.Block.generate_next_block_from_remote_coinbas(coinbase_tx)
+        block = blockchain.Block.generate_next_block_from_remote_coinbas(coinbase_your_timestamp = tx)
         print("generate block %s" % block.hash)
 
 @manager.command

@@ -109,3 +109,4 @@ include/
 pip-selfcheck.json
 config.json
 db/*.db
+blocks.json

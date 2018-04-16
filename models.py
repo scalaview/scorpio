@@ -1,5 +1,5 @@
 from app import db
-from sqlalchemy import or_, text
+from sqlalchemy import or_, text, and_
 import json
 from sqlalchemy.dialects.sqlite import \
             BLOB, BOOLEAN, CHAR, DATE, DATETIME, DECIMAL, FLOAT, \
@@ -28,7 +28,7 @@ class DBBlock(BaseModel, Model):
 
     @property
     def transactions(self):
-        pass
+        return DBTransaction.query.filter_by(id=self.id).order_by(DBTransaction.position).all()
 
     @staticmethod
     def build(block):
@@ -36,6 +36,14 @@ class DBBlock(BaseModel, Model):
             previous_hash=block.previous_hash, difficulty=block.difficulty, \
             timestamp=fromtimestamp(block.timestamp), nonce=block.nonce)
 
+    @staticmethod
+    def batch_all(start=0, offet=500, func=None):
+        total = DBBlock.query.filter(DBBlock.index>0).count()
+        for chunkstart in range(start, total, offet):
+            dbblocks = DBBlock.query.filter(DBBlock.index>0).order_by(DBBlock.index).offset(chunkstart).limit(offet).all()
+            print(dbblocks)
+            if func is not None:
+                func(dbblocks)
 
 
 class DBTransaction(BaseModel, Model):
@@ -47,11 +55,11 @@ class DBTransaction(BaseModel, Model):
 
     @property
     def tx_ins(self):
-        pass
+        return DBTxIn.query.filter_by(transaction_id=self.id).order_by(DBTxIn.position).all()
 
     @property
     def tx_outs(self):
-        pass
+        return DBTxOut.query.filter_by(transaction_id=self.id).order_by(DBTxIn.position).all()
 
     @staticmethod
     def build(block_id, transaction, position):

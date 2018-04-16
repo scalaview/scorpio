@@ -176,3 +176,13 @@ def block_serialization(block):
         db.session.commit()
 
 
+def import_from_db():
+    from models import DBBlock, DBTransaction, DBTxIn, DBTxOut
+    block = Block.db2obj(DBBlock.query.filter_by(index=0).first())
+    if Block.genesis_block().hash == block.hash:
+        total = DBBlock.query.count()
+        if len(Scorpio.get_blockchain()) < total:
+            Scorpio.instance.blockchain = [Block.genesis_block()]
+            DBBlock.batch_all(func=lambda dbblocks : )
+    else:
+        pass

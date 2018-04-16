@@ -538,6 +538,10 @@ class Block(object):
         self.nonce = nonce
 
     @staticmethod
+    def db2obj(dbblock):
+        return Block(dbblock.index, dbblock.hash, dbblock.hash, dbblock.difficulty, None, dbblock.timestamp, dbblock.nonce)
+
+    @staticmethod
     def validate(transactions, unspent_tx_outs, block_index):
         if not Block.validate_coinbase_transaction(transactions[0], block_index):
             logging.error("invalid coinbase transaction: %s" % json.dumps(transactions[0], cls=DymEncoder))
