@@ -3,7 +3,6 @@ import requests
 import os
 from config import config
 from flask_script import Manager, Shell, Server
-from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask.json import JSONEncoder
 db = SQLAlchemy()
@@ -15,7 +14,6 @@ class MiniJSONEncoder(JSONEncoder):
 
 def create_app(env):
     app = Flask(__name__)
-    CORS(app)
     app.config.from_object(config[env])
     app.json_encoder = MiniJSONEncoder
     db.init_app(app)
