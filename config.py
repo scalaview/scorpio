@@ -18,9 +18,11 @@ class Config:
         app.json_encoder = blockchain.DymEncoder
         app.app_context().push()
         blockchain.Scorpio.build_instance(os.environ.get("PRIV_KEY"))
-        import util
-        util.import_from_db()
-
+        try:
+            import util
+            util.import_from_db()
+        except Exception as e:
+            pass
 
 class DevelopmentConfig(Config):
     DEBUG = True
@@ -33,12 +35,14 @@ class DevelopmentConfig(Config):
 class StagingConfig(Config):
     TESTING = True
     JSONIFY_PRETTYPRINT_REGULAR = False
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
     option = Option(config_json.get("staging"))
     SQLALCHEMY_DATABASE_URI = os.environ.get('TEST_DATABASE_URL') or \
         'sqlite:///%s/%s' % (option.path, option.database)
 
 class ProductionConfig(Config):
     JSONIFY_PRETTYPRINT_REGULAR = False
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
     option = Option(config_json.get("production"))
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
         'sqlite:///%s/%s' % (option.path, option.database)

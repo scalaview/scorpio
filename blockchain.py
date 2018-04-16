@@ -547,7 +547,7 @@ class Block(object):
         self.difficulty = difficulty
         self.transactions = transactions
         self.timestamp = timestamp
-        self.nonce = nonce
+        self.nonce = str(nonce)
 
     @staticmethod
     def db2obj(dbblock):

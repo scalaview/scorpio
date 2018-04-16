@@ -14,7 +14,11 @@ class MiniJSONEncoder(JSONEncoder):
 
 def create_app(env):
     app = Flask(__name__)
+
     app.config.from_object(config[env])
+    if app.config.get('DEBUG'):
+      from flask_cors import CORS
+      CORS(app)
     app.json_encoder = MiniJSONEncoder
     db.init_app(app)
     config[env].init_app(app)
