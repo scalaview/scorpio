@@ -7,7 +7,7 @@
 * generate a secp256k1 keypair yourself or [enumaelish.tk](https://enumaelish.tk)
 ```shell
 pip3 install -r requirements.txt
-export export PRIV_KEY="your private key"
+export PRIV_KEY="your private key"
 python3 manager.py runserver
 ```
 ### What next
@@ -147,5 +147,3 @@ require params:
 
 ## License
 [MIT](http://opensource.org/licenses/MIT)
-
-Copyright (c) 2019-present, Benko bin
