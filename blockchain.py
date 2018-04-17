@@ -8,6 +8,8 @@ from functools import reduce
 import math
 import copy
 
+from models import DBBlock, DBTransaction, DBTxIn, DBTxOut, DBUnspentTxOut
+
 BLOCK_GENERATION_INTERVAL = 10
 
 DIFFICULTY_ADJUSTMENT_INTERVAL = 10
@@ -51,21 +53,18 @@ class Scorpio(object):
 
     @staticmethod
     def get_latest_block():
-        if Scorpio.instance:
-            return Scorpio.instance._get_latest_block()
-        else:
-            return None
+        return Scorpio.instance._get_latest_block();
 
     @staticmethod
     def get_blockchain():
-        if Scorpio.instance:
-            return Scorpio.instance.blockchain
-        else:
-            return None
+        blocks = []
+        for dbblock in DBBlock.batch_all():
+            blocks.append(Block.db2obj(dbblock))
+        return blocks
 
     @staticmethod
     def get_unspent_tx_outs():
-        return Scorpio.instance.unspent_tx_outs
+        return Scorpio.instance._get_unspent_tx_outs()
 
     @staticmethod
     def get_transaction_pool():
@@ -169,7 +168,7 @@ class Scorpio(object):
         self.transaction_pool = tx_pool
 
     def _get_latest_block(self):
-        return self.blockchain[-1]
+        return Block.db2obj(DBBlock.get_latest_block())
 
     def _add_to_transaction_pool(self, tx, unspent_tx_outs):
         if not self.validate_transaction(tx, unspent_tx_outs):
@@ -202,7 +201,7 @@ class Scorpio(object):
         return self.blockchain
 
     def _get_unspent_tx_outs(self):
-        return self.unspent_tx_outs
+        return DBUnspentTxOut.unspent_tx_outs()
 
     def set_unspent_tx_outs(self, un_tx_outs):
         self.unspent_tx_outs = un_tx_outs
